@@ -1,0 +1,41 @@
+{
+  "run_id": "run-0012",
+  "timestamp": "2026-07-08T14:00:00+08:00",
+  "target": "v0.1 prototype — port 9000, sample DUTs, wave canvas fix",
+  "plan_section": "section 9 (UI) + prototype smoke samples",
+  "interfaces_touched": [
+    "IUIRenderer (sample dropdown, wave canvas plotW fix, bus hex labels)",
+    "FastAPI samples endpoints (/api/samples, /api/samples/{id})",
+    "Makefile PORT default 9000 + samples target"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/app.py",
+    "prototype/templates/index.html",
+    "prototype/Makefile",
+    "prototype/README.md",
+    "prototype/examples/counter.v",
+    "prototype/examples/samples.json",
+    "prototype/examples/toggle_ff.v",
+    "prototype/examples/shift4.v",
+    "prototype/scripts/run_samples.py"
+  ],
+  "gate_results": {
+    "G2": "PASS",
+    "samples": {
+      "counter": "PASS — 8 signals, t_max=345000, delta_rows=5",
+      "toggle_ff": "PASS — 6 signals, t_max=345000, delta_rows=4",
+      "shift4": "PASS — 8 signals, t_max=345000, delta_rows=3"
+    },
+    "api_smoke": "POST /api/run + /api/waves + /api/delta on port 9000 — PASS"
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "Default uvicorn port changed 8765 → 9000 (8765 reserved for gtkwave WCP elsewhere)",
+    "Batch sample runner scripts/run_samples.py for offline gate/wave/delta checks",
+    "Wave canvas had plotW-before-definition JS bug — fixed width calculation"
+  ],
+  "open_questions_for_claude": [
+    "Review L2_sim_active from run_samples.py batch (3 DUTs)",
+    "Confirm port 9000 documented sufficiently for daily use"
+  ]
+}

@@ -2,7 +2,7 @@
 
 PYTHON ?= python
 VENV ?= .venv
-PORT ?= 8765
+PORT ?= 9000
 
 install:
 	$(PYTHON) -m venv $(VENV)
@@ -13,6 +13,9 @@ run:
 
 doctor:
 	$(PYTHON) -c "from vking_proto import doctor; import json; print(json.dumps(doctor.doctor_report(), indent=2))"
+
+samples:
+	$(PYTHON) scripts/run_samples.py
 
 clean:
 	rm -rf runs/*

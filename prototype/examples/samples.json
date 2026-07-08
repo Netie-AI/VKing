@@ -1,0 +1,20 @@
+[
+  {
+    "id": "counter",
+    "name": "8-bit counter",
+    "file": "counter.v",
+    "description": "Increments count when en=1; classic smoke-test DUT."
+  },
+  {
+    "id": "toggle_ff",
+    "name": "Toggle FF",
+    "file": "toggle_ff.v",
+    "description": "q toggles each enabled clock — easy to read on wave canvas."
+  },
+  {
+    "id": "shift4",
+    "name": "4-bit shifter",
+    "file": "shift4.v",
+    "description": "Shift register; bus q_out shows hex transitions."
+  }
+]

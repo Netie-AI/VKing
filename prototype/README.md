@@ -50,10 +50,10 @@ pip install -r requirements.txt
 From the `prototype` directory (with venv activated):
 
 ```powershell
-python -m uvicorn vking_proto.app:app --host 127.0.0.1 --port 8765
+python -m uvicorn vking_proto.app:app --host 127.0.0.1 --port 9000
 ```
 
-Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
+Open [http://127.0.0.1:9000](http://127.0.0.1:9000).
 
 Or use the Makefile (from repo root, adjust `PYTHON` if needed):
 
@@ -65,7 +65,7 @@ make -C prototype run
 
 | Target   | Action                                      |
 |----------|---------------------------------------------|
-| `run`    | Start uvicorn on port 8765                  |
+| `run`    | Start uvicorn on port 9000                  |
 | `doctor` | Print toolchain probe JSON                  |
 | `clean`  | Remove `runs/` artifacts and `__pycache__` |
 

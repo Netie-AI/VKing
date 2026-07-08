@@ -560,7 +560,7 @@
 
     .wave-canvas-box {
       flex: 1;
-      min-height: 0;
+      min-height: 280px;
       overflow: auto;
       border-radius: var(--radius-sm);
       border: 1px solid var(--data-border);
@@ -571,8 +571,18 @@
     #wave-svg {
       display: block;
       min-width: 100%;
-      height: 100%;
       min-height: 240px;
+    }
+
+    .sample-select {
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--data-border);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--text);
+      max-width: 100%;
     }
 
     .wave-legend {
@@ -667,7 +677,8 @@
           </div>
 
           <div class="toolbar glass">
-            <button type="button" class="secondary" id="btn-demo" title="Load 8-bit counter example">① Demo</button>
+            <select class="sample-select" id="sample-select" title="Pick a sample DUT"></select>
+            <button type="button" class="secondary" id="btn-demo" title="Load selected sample">① Load</button>
             <button type="button" id="btn-sync-tb" title="Auto-generate testbench from DUT">② Sync TB</button>
             <button type="button" id="btn-netlist" title="Yosys block diagram (netlistsvg)">Schematic</button>
             <button type="button" id="btn-parse">Parse</button>
@@ -1106,10 +1117,11 @@ endmodule`;
 
       const margin = { top: 16, right: 24, bottom: 28, left: 130 };
       const box = $('wave-box');
-      const width = Math.max(box.clientWidth || 480, 480);
+      const minW = Math.max(box.clientWidth || 480, 480);
+      const plotW = Math.max(minW - margin.left - margin.right, 320);
+      const width = plotW + margin.left + margin.right;
       const trackH = 44;
       const height = margin.top + margin.bottom + data.signals.length * trackH;
-      const plotW = width - margin.left - margin.right;
       const plotH = height - margin.top - margin.bottom;
       const tMax = Math.max(data.t_max, 1);
 
@@ -1196,29 +1208,41 @@ endmodule`;
           for (let j = 0; j < values.length; j++) {
             const t = values[j].t;
             const nextT = j + 1 < values.length ? values[j + 1].t : tMax;
-            const frac = 0.5;
+            const raw = String(values[j].v);
+            let frac = 0.5;
+            if (/^[01]+$/.test(raw)) {
+              const maxV = (1 << raw.length) - 1;
+              frac = maxV ? parseInt(raw, 2) / maxV : 0;
+            }
             const y = laneBot - (laneBot - laneTop) * frac;
             const x0 = xScale(t);
             const x1 = xScale(nextT);
             d += `M${x0},${y}H${x1}`;
+            if (j + 1 < values.length) {
+              const nraw = String(values[j + 1].v);
+              let nfrac = 0.5;
+              if (/^[01]+$/.test(nraw)) {
+                const maxV = (1 << nraw.length) - 1;
+                nfrac = maxV ? parseInt(nraw, 2) / maxV : 0;
+              }
+              const ny = laneBot - (laneBot - laneTop) * nfrac;
+              d += `V${ny}`;
+            }
+            const vt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            vt.setAttribute('x', x0 + 3);
+            vt.setAttribute('y', y - 4);
+            vt.setAttribute('fill', color);
+            vt.setAttribute('font-size', '9');
+            vt.setAttribute('font-family', 'ui-monospace,monospace');
+            vt.textContent = formatBusValue(raw);
+            svg.appendChild(vt);
           }
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', d);
           path.setAttribute('fill', 'none');
           path.setAttribute('stroke', color);
           path.setAttribute('stroke-width', '2');
-          path.setAttribute('stroke-dasharray', '4 3');
           svg.appendChild(path);
-
-          const last = values[values.length - 1];
-          const vt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          vt.setAttribute('x', xScale(last.t) + 4);
-          vt.setAttribute('y', yMid + 3);
-          vt.setAttribute('fill', color);
-          vt.setAttribute('font-size', '10');
-          vt.setAttribute('font-family', 'ui-monospace,monospace');
-          vt.textContent = formatBusValue(last.v);
-          svg.appendChild(vt);
         }
 
         const leg = document.createElement('span');
@@ -1341,17 +1365,40 @@ endmodule`;
     });
 
     /* ── Toolbar actions ── */
-    $('btn-demo').addEventListener('click', async () => {
+    async function loadSampleList() {
+      const sel = $('sample-select');
       try {
-        const r = await fetch('/api/demo/counter');
+        const r = await fetch('/api/samples');
         const data = await r.json();
-        getEditor('dut').value = data.source || DEMO_COUNTER;
+        sel.innerHTML = '';
+        for (const s of data.samples || []) {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.name;
+          opt.title = s.description || '';
+          sel.appendChild(opt);
+        }
+      } catch {
+        sel.innerHTML = '<option value="counter">8-bit counter</option>';
+      }
+    }
+
+    async function loadSelectedSample() {
+      const id = $('sample-select').value || 'counter';
+      try {
+        const r = await fetch('/api/samples/' + encodeURIComponent(id));
+        const data = await r.json();
+        getEditor('dut').value = data.source || '';
+        $('left-status').textContent = 'Loaded sample: ' + (data.name || id);
       } catch {
         getEditor('dut').value = DEMO_COUNTER;
+        $('left-status').textContent = 'Loaded fallback counter';
       }
+      getEditor('tb').value = '';
       setActiveEditor('dut');
-      $('left-status').textContent = 'Loaded counter demo';
-    });
+    }
+
+    $('btn-demo').addEventListener('click', () => loadSelectedSample());
 
     $('btn-sync-tb').addEventListener('click', async () => {
       const source = getEditor('dut').value;
@@ -1480,6 +1527,7 @@ endmodule`;
 
     fetchDoctor();
     fetchAiStatus();
+    loadSampleList();
   </script>
 </body>
 </html>

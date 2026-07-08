@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import uuid
@@ -21,7 +22,9 @@ from .tbgen import TbGenConfig, generate_clk_rst_smoke
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / "templates"
 RUNS_DIR = ROOT / "runs"
-DEMO_COUNTER = Path(__file__).resolve().parent / "demos" / "counter.v"
+EXAMPLES_DIR = ROOT / "examples"
+SAMPLES_MANIFEST = EXAMPLES_DIR / "samples.json"
+DEMO_COUNTER = EXAMPLES_DIR / "counter.v"
 
 app = FastAPI(title="Vking Prototype", version="0.1.0")
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -175,10 +178,37 @@ def api_ai_status() -> dict:
     return {"available": cfg is not None, "config": ai_config_public(cfg)}
 
 
+@app.get("/api/samples")
+def api_samples_list() -> dict:
+    if not SAMPLES_MANIFEST.is_file():
+        return {"samples": []}
+    items = json.loads(SAMPLES_MANIFEST.read_text(encoding="utf-8"))
+    return {"samples": items}
+
+
+@app.get("/api/samples/{sample_id}")
+def api_sample_get(sample_id: str) -> dict:
+    if not SAMPLES_MANIFEST.is_file():
+        raise HTTPException(status_code=404, detail="samples manifest missing")
+    items = json.loads(SAMPLES_MANIFEST.read_text(encoding="utf-8"))
+    match = next((s for s in items if s["id"] == sample_id), None)
+    if not match:
+        raise HTTPException(status_code=404, detail=f"unknown sample '{sample_id}'")
+    path = EXAMPLES_DIR / match["file"]
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"sample file missing: {match['file']}")
+    return {
+        "id": match["id"],
+        "name": match["name"],
+        "description": match.get("description", ""),
+        "source": path.read_text(encoding="utf-8"),
+        "module": parse_verilog_source(path.read_text(encoding="utf-8")).name,
+    }
+
+
 @app.get("/api/demo/counter")
 def api_demo_counter() -> dict:
-    source = DEMO_COUNTER.read_text(encoding="utf-8") if DEMO_COUNTER.exists() else ""
-    return {"source": source, "module": "counter"}
+    return api_sample_get("counter")
 
 
 @app.post("/api/sync-tb")
@@ -439,7 +469,7 @@ def api_gtkwave(req: GtkwaveRequest) -> dict:
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("vking_proto.app:app", host="127.0.0.1", port=8765, reload=False)
+    uvicorn.run("vking_proto.app:app", host="127.0.0.1", port=9000, reload=False)
 
 
 if __name__ == "__main__":
