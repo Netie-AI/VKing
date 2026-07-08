@@ -689,7 +689,13 @@
       line-height: 1.5;
     }
 
-    .beginner-strip strong { color: var(--accent); font-weight: 500; }
+    .wave-help {
+      font-size: 0.72rem;
+      line-height: 1.55;
+      margin-bottom: 10px;
+    }
+
+    .wave-help code { font-size: 0.68rem; }
 
     .schematic-box {
       min-height: 200px;
@@ -721,9 +727,6 @@
         <h1>Vking</h1>
         <p>Local Verilog Workbench · v0.1</p>
       </div>
-      <div class="honesty-banner">
-        Compile + sim prove the testbench runs — not that your design is functionally correct.
-      </div>
       <div class="scan-pill" id="scan-pill" title="">
         <span class="scan-dot" id="scan-dot"></span>
         <span id="scan-label">Checking…</span>
@@ -737,7 +740,6 @@
         <nav class="tabs glass" id="editor-tabs" role="tablist">
           <button type="button" class="active" data-editor="dut">DUT</button>
           <button type="button" data-editor="tb">TB</button>
-          <button type="button" data-editor="manifest">Manifest</button>
         </nav>
 
         <div class="panel-stack data-panel">
@@ -745,25 +747,21 @@
             <textarea class="editor" id="editor-dut" spellcheck="false" placeholder="Paste DUT Verilog here…"></textarea>
           </div>
           <div class="editor-pane" id="pane-tb">
-            <textarea class="editor" id="editor-tb" spellcheck="false" placeholder="Testbench — use Sync TB or edit manually…"></textarea>
-          </div>
-          <div class="editor-pane" id="pane-manifest">
-            <textarea class="editor" id="editor-manifest" spellcheck="false" readonly placeholder="Run manifest JSON appears after simulation…"></textarea>
+            <textarea class="editor" id="editor-tb" spellcheck="false" placeholder="Your testbench — or click Sync TB to generate template + wave dump…"></textarea>
           </div>
 
           <div class="toolbar glass">
             <select class="sample-select" id="sample-select" title="Pick a sample DUT"></select>
             <button type="button" class="secondary" id="btn-demo" title="Load selected sample">① Load</button>
-            <button type="button" id="btn-sync-tb" title="Optional: auto-generate a template TB (replaces TB tab — skip if you wrote your own)">Generate auto TB</button>
-            <button type="button" id="btn-add-waves" title="Append $dumpfile/$dumpvars to your TB for Waves/GTKWave">Insert wave dump</button>
-            <button type="button" id="btn-netlist" title="Yosys block diagram (netlistsvg)">Schematic</button>
+            <button type="button" id="btn-sync-tb" title="Empty TB → generate template. Existing TB → add $dumpvars(0, top) only (keeps your stimulus)">② Sync TB</button>
             <button type="button" id="btn-parse">Parse</button>
             <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
-            <button type="button" id="btn-ai">AI Generate</button>
+            <button type="button" id="btn-ai-tb" title="AI-generate testbench from DUT (replaces TB tab)">AI TB</button>
+            <button type="button" id="btn-ai">AI DUT</button>
             <button type="button" class="primary" id="btn-run" title="Compile + simulate with Icarus">③ Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
-          <p class="beginner-strip"><strong>Two editors:</strong> <em>DUT</em> = your design module only · <em>TB</em> = your testbench (paste yours here). <strong>Run Sim</strong> uses whatever is in the TB tab — it does <em>not</em> replace your TB. <em>Generate auto TB</em> is optional (template smoke test). For waves, click <em>Insert wave dump</em> if your TB has no <code>$dumpfile</code>.</p>
+          <p class="beginner-strip"><strong>Flow:</strong> ① Load or paste DUT → ② Sync TB (template + <code>$dumpvars(0, top)</code>) → ③ Run Sim → <em>Waves</em> + <em>Schematic</em> auto-open. Your own TB? Paste in TB tab — Sync TB only adds wave dump, won&rsquo;t replace it.</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -849,7 +847,11 @@
           <!-- Waves -->
           <div class="result-pane" id="result-waves">
             <div class="result-body wave-wrap">
-              <p class="wave-meta" id="wave-meta">Run simulation first. Click anywhere on the chart to inspect delta at that time.</p>
+              <p class="wave-meta" id="wave-meta">Run simulation first. Click the chart → Delta at nearest event.</p>
+              <div class="disclaimer wave-help">
+                <strong>Auto-appending signals:</strong> Use <code>$dumpvars(0, your_tb_module);</code> — depth 0 records every signal in the TB and all sub-modules (e.g. <code>u_dut</code>). TB wires like <code>d_in</code>, <code>q1</code> mirror DUT ports — either scope is fine. GTKWave: <kbd>Ctrl+S</kbd> saves a <code>.gtkw</code> layout for next time.<br><br>
+                <strong>Shift register check:</strong> Watch <code>d_in</code> → next clock <code>q1</code> → next clock <code>q2</code> (one-cycle delay per flop).
+              </div>
               <div class="wave-canvas-box" id="wave-box">
                 <svg id="wave-svg" xmlns="http://www.w3.org/2000/svg"></svg>
               </div>
@@ -863,10 +865,8 @@
               <div class="disclaimer">
                 Block diagram from Yosys. Rendered inline below; external editor still available.
               </div>
-              <div id="netlist-svg-host">Click <strong>Schematic</strong> in the toolbar to render.</div>
-              <div class="schematic-box" id="schematic-box" style="margin-top:10px;display:none">
-                Click <strong>Schematic</strong> in the toolbar (or switch here after Run) to build netlist JSON from your DUT.
-              </div>
+              <div id="netlist-svg-host">Schematic appears here after Run Sim.</div>
+              <div class="schematic-box" id="schematic-box" style="margin-top:10px;display:none"></div>
               <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
                 <button type="button" id="btn-copy-netlist" disabled>Copy JSON</button>
                 <button type="button" id="btn-open-netlistsvg" disabled>Open netlistsvg</button>
@@ -962,16 +962,18 @@ endmodule`;
     }
 
     function updateAiButton() {
-      const btn = $('btn-ai');
+      const aiTb = $('btn-ai-tb');
+      const aiDut = $('btn-ai');
       if (!state.aiAvailable) {
-        btn.disabled = true;
+        aiTb.disabled = true;
+        aiDut.disabled = true;
         return;
       }
-      btn.disabled = state.activeEditor === 'manifest';
+      aiTb.disabled = !getEditor('dut').value.trim();
+      aiDut.disabled = false;
     }
 
     function aiModeForTab() {
-      if (state.activeEditor === 'tb') return 'tb';
       if (state.activeEditor === 'dut') {
         return getEditor('dut').value.trim() ? 'improve' : 'generate';
       }
@@ -1103,7 +1105,6 @@ endmodule`;
       renderRunSummary(data.manifest, data.log);
       $('sim-log').textContent = data.log || '(empty log)';
       renderArtifacts(state.artifactUrls);
-      getEditor('manifest').value = JSON.stringify(data.manifest, null, 2);
       if (data.tb_warnings && data.tb_warnings.length) {
         $('left-status').textContent =
           'Run ' + state.runId + ' — ' + data.tb_warnings.join(' ');
@@ -1118,7 +1119,7 @@ endmodule`;
           : 'Run complete — click Waves tab; click a trace to inspect delta at that time.';
       state.waveData = null;
       if (data.manifest.gate_results?.G2?.status === 'PASS' && !data.demo_waves) {
-        setActiveResult('waves');
+        buildNetlist(false).then(() => setActiveResult('schematic'));
         loadWaves().then(() => {
           if (state.waveData?.t_max) {
             const pick = Math.max(1, Math.floor(state.waveData.t_max / 3));
@@ -1131,6 +1132,8 @@ endmodule`;
         });
       } else if (state.activeResult === 'waves') {
         loadWaves();
+      } else if (state.activeResult === 'schematic' && !state.netlistJson) {
+        buildNetlist(false);
       }
     }
 
@@ -1448,10 +1451,11 @@ endmodule`;
     async function buildNetlist(showTab) {
       const source = getEditor('dut').value;
       if (!source.trim()) {
-        $('schematic-box').textContent = 'DUT is empty — paste Verilog or load Demo first.';
+        $('netlist-svg-host').textContent = 'DUT is empty — paste Verilog first.';
         return;
       }
       $('schematic-box').textContent = 'Running Yosys elaboration…';
+      $('schematic-box').style.display = 'block';
       try {
         const r = await fetch('/api/netlist', {
           method: 'POST',
@@ -1471,7 +1475,6 @@ endmodule`;
         await renderNetlistSvg(data.netlist);
         $('schematic-box').innerHTML =
           `<strong>Top:</strong> ${esc(data.top)} · <strong>modules:</strong> ${data.module_count}`;
-        $('schematic-box').style.display = 'block';
         $('btn-copy-netlist').disabled = false;
         $('btn-open-netlistsvg').disabled = false;
         if (showTab !== false) setActiveResult('schematic');
@@ -1526,7 +1529,7 @@ endmodule`;
         getEditor('dut').value = data.source || '';
         getEditor('tb').value = data.tb_source || '';
         $('left-status').textContent = 'Loaded sample: ' + (data.name || id) +
-          (data.tb_source ? ' (+ TB)' : ' — paste your TB or Generate auto TB');
+          (data.tb_source ? ' (+ TB)' : ' — click Sync TB or paste your TB');
       } catch {
         getEditor('dut').value = DEMO_COUNTER;
         getEditor('tb').value = '';
@@ -1543,49 +1546,41 @@ endmodule`;
         $('left-status').textContent = 'DUT source is empty';
         return;
       }
-      if (getEditor('tb').value.trim()) {
-        if (!confirm('Replace YOUR testbench in the TB tab with an auto-generated template?')) {
-          $('left-status').textContent = 'Kept your TB — Run Sim uses TB tab as-is';
+      const existingTb = getEditor('tb').value.trim();
+      if (!existingTb) {
+        $('left-status').textContent = 'Sync TB — generating template…';
+        const r = await fetch('/api/sync-tb', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          $('left-status').textContent = data.detail || 'sync-tb failed';
           return;
         }
+        getEditor('tb').value = data.tb || '';
+        if (data.ports) renderPorts(data.ports);
+        setActiveEditor('tb');
+        $('left-status').textContent =
+          'Sync TB — template with $dumpvars(0, tb_top) for ' + (data.module || '');
+        return;
       }
-      $('left-status').textContent = 'Generating auto TB…';
-      const r = await fetch('/api/sync-tb', {
+      $('left-status').textContent = 'Sync TB — adding wave dump to your testbench…';
+      const r = await fetch('/api/tb/add-waves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source }),
+        body: JSON.stringify({ source: existingTb }),
       });
       const data = await r.json();
       if (!r.ok) {
         $('left-status').textContent = data.detail || 'sync-tb failed';
         return;
       }
-      getEditor('tb').value = data.tb || '';
-      if (data.ports) renderPorts(data.ports);
-      setActiveEditor('tb');
-      $('left-status').textContent = 'Auto TB generated for ' + (data.module || '') + ' — edit TB tab or Run Sim';
-    });
-
-    $('btn-add-waves').addEventListener('click', async () => {
-      const tb = getEditor('tb').value;
-      if (!tb.trim()) {
-        $('left-status').textContent = 'TB tab is empty — paste your testbench first';
-        setActiveEditor('tb');
-        return;
-      }
-      const r = await fetch('/api/tb/add-waves', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: tb }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        $('left-status').textContent = data.detail || 'add-waves failed';
-        return;
-      }
       if (data.changed) getEditor('tb').value = data.tb;
       setActiveEditor('tb');
-      $('left-status').textContent = data.message || 'Wave dump updated';
+      $('left-status').textContent =
+        data.message + ' — your stimulus unchanged. Use $dumpvars(0, ' + (data.tb_top || 'top') + ').';
     });
 
     $('btn-parse').addEventListener('click', async () => {
@@ -1606,14 +1601,53 @@ endmodule`;
         'Module: ' + data.module + (data.errors?.length ? ' — ' + data.errors.join('; ') : '');
     });
 
+    $('btn-ai-tb').addEventListener('click', async () => {
+      if (!state.aiAvailable) return;
+      const dut = getEditor('dut').value.trim();
+      if (!dut) {
+        $('left-status').textContent = 'DUT tab is empty — paste DUT first';
+        return;
+      }
+      if (getEditor('tb').value.trim() &&
+          !confirm('Replace TB tab with AI-generated testbench?')) {
+        return;
+      }
+      const prompt = $('ai-prompt').value.trim() || null;
+      $('left-status').textContent = 'AI generating testbench…';
+      const r = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: dut, prompt, mode: 'tb' }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        $('left-status').textContent = data.detail || 'AI TB failed';
+        return;
+      }
+      let tb = data.verilog || '';
+      if (tb && !/\$dumpfile/.test(tb)) {
+        const wr = await fetch('/api/tb/add-waves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: tb }),
+        });
+        const wdata = await wr.json();
+        if (wr.ok && wdata.changed) tb = wdata.tb;
+      }
+      getEditor('tb').value = tb;
+      setActiveEditor('tb');
+      $('left-status').textContent =
+        'AI TB via ' + data.provider + ' / ' + data.model + ' — review TB tab, then Run Sim';
+    });
+
     $('btn-ai').addEventListener('click', async () => {
-      if (!state.aiAvailable || state.activeEditor === 'manifest') return;
+      if (!state.aiAvailable) return;
       const mode = aiModeForTab();
       const prompt = $('ai-prompt').value.trim() || null;
-      const source = mode === 'tb' || mode === 'improve'
+      const source = mode === 'improve'
         ? getEditor('dut').value
         : (getEditor('dut').value.trim() || null);
-      $('left-status').textContent = 'AI generating (' + mode + ')…';
+      $('left-status').textContent = 'AI generating DUT (' + mode + ')…';
       const r = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1624,11 +1658,10 @@ endmodule`;
         $('left-status').textContent = data.detail || 'AI generate failed';
         return;
       }
-      const target = mode === 'tb' ? 'tb' : 'dut';
-      getEditor(target).value = data.verilog || '';
-      setActiveEditor(target);
+      getEditor('dut').value = data.verilog || '';
+      setActiveEditor('dut');
       $('left-status').textContent =
-        'AI ' + data.mode + ' via ' + data.provider + ' / ' + data.model;
+        'AI DUT via ' + data.provider + ' / ' + data.model;
     });
 
     $('btn-run').addEventListener('click', async () => {
@@ -1643,7 +1676,7 @@ endmodule`;
       const body = { source };
       if (tb) {
         body.tb_source = getEditor('tb').value;
-      } else if (confirm('TB tab is empty. Generate auto TB and run? (Cancel to paste your own TB first)')) {
+      } else if (confirm('TB tab is empty. Click Sync TB first? (OK = auto-generate template TB and run)')) {
         body.auto_tb = true;
       } else {
         $('left-status').textContent = 'Cancelled — paste your testbench in TB tab, then Run Sim';
@@ -1663,8 +1696,6 @@ endmodule`;
       }
       applyRunResult(data);
     });
-
-    $('btn-netlist').addEventListener('click', () => buildNetlist(true));
 
     $('btn-copy-netlist').addEventListener('click', async () => {
       if (!state.netlistJson) return;

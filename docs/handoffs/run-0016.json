@@ -1,0 +1,16 @@
+{
+  "run_id": "run-0016",
+  "timestamp": "2026-07-08T15:00:00+08:00",
+  "target": "v0.1 prototype — UI simplification (Sync TB, AI TB, auto schematic)",
+  "plan_section": "section 9 (UI)",
+  "interfaces_touched": ["IUIRenderer"],
+  "files_changed": ["prototype/templates/index.html"],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "Removed Manifest editor tab and honesty banner",
+    "Sync TB: empty→template; existing→add $dumpvars only",
+    "AI TB button beside prompt; schematic auto after run"
+  ],
+  "open_questions_for_claude": []
+}
