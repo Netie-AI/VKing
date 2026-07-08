@@ -1,22 +1,40 @@
 {
   "run_id": "run-0010",
-  "timestamp": "2026-07-08T13:40:00+08:00",
-  "target": "v0.1 prototype — glass-morphism workbench UI",
-  "plan_section": "section 9 (UI v0.1) + v0.7 UI direction (dense data panels + glass chrome)",
+  "timestamp": "2026-07-08T13:45:00+08:00",
+  "target": "v0.1 prototype — glass UI + AI/waves/delta end-to-end",
+  "plan_section": "section 9 (UI v0.1) + section 3 UC6 prototype (VCD delta reconstruction)",
   "interfaces_touched": [
-    "IUIRenderer (full workbench: editor tabs, result tabs, wave canvas, delta panel)"
+    "IUIRenderer (glass workbench, DUT/TB/Manifest tabs, wave canvas)",
+    "ITBGenerator (sync-tb API)",
+    "ISimBackend (oss-cad PATH autodetect)",
+    "AI generate (OpenRouter/Groq via .env, not committed)"
   ],
   "files_changed": [
-    "prototype/templates/index.html"
+    "prototype/templates/index.html",
+    "prototype/vking_proto/app.py",
+    "prototype/vking_proto/config.py",
+    "prototype/vking_proto/ai_generate.py",
+    "prototype/vking_proto/waves.py",
+    "prototype/vking_proto/doctor.py",
+    "prototype/vking_proto/runner.py",
+    "prototype/vking_proto/delta.py",
+    "prototype/requirements.txt",
+    "prototype/scripts/install_oss_cad.ps1",
+    "docs/handoffs/run-0006.json",
+    "docs/handoffs/run-0007.json",
+    "docs/handoffs/run-0008.json"
   ],
   "gate_results": {},
   "self_provenance": "L1_compiled",
   "deviations_from_plan": [
-    "Glass chrome applied to header/nav/toolbar per demoui reference; data panels use dense dark fill per v0.7 Palantir register direction",
-    "Manifest editor tab shows run JSON read-only; AI Generate disabled on Manifest tab"
+    "Glass chrome on header/nav per OpenMW demoui reference; dense dark data panels per v0.7 direction",
+    "Demo VCD written when sim toolchain missing so delta/wave UI remains testable",
+    "AI generate uses repo-root .env keys (OPENROUTER/GROQ); keys never committed",
+    "Delta remains VCD file-order reconstruction, not Stage-2 VPI hooks"
   ],
   "open_questions_for_claude": [
-    "Review glass vs dense-panel balance against v0.7 rule (glass strictly on nav/overlays)",
-    "Confirm wave canvas click-to-delta time conversion from VCD timescale is acceptable for prototype"
+    "Review glass vs dense-panel balance against v0.7 rule",
+    "Confirm demo VCD on skipped sim is acceptable UX vs hard-disabled wave panel",
+    "User should rotate .env secrets if exposed in IDE session"
   ]
 }

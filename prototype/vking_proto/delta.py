@@ -346,6 +346,18 @@ def reconstruct(path: str | Path, time_ns: float) -> dict[str, Any]:
     }
 
 
+def demo_vcd_text() -> str:
+    """Minimal VCD for UI/delta testing when sim toolchain is unavailable."""
+    return _self_test_sample_vcd()
+
+
+def write_demo_vcd(path: str | Path) -> Path:
+    """Write the demo VCD to *path* for delta/wave panel smoke tests."""
+    target = Path(path)
+    target.write_text(demo_vcd_text(), encoding="utf-8")
+    return target
+
+
 def _self_test_sample_vcd() -> str:
     return "\n".join(
         [

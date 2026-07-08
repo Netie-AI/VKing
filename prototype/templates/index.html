@@ -251,6 +251,7 @@
       display: flex;
       flex-direction: column;
       position: relative;
+      overflow: hidden;
     }
 
     .editor-pane {
@@ -519,6 +520,13 @@
     }
 
     /* ── Waves tab ── */
+    .result-body.wave-wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
     .wave-wrap {
       flex: 1;
       min-height: 200px;
@@ -788,7 +796,13 @@ endmodule`;
       document.querySelectorAll('.result-pane').forEach((p) => {
         p.classList.toggle('active', p.id === 'result-' + id);
       });
-      if (id === 'waves' && state.runId) loadWaves();
+      if (id === 'waves' && state.runId) {
+        if (state.waveData) {
+          requestAnimationFrame(() => drawWaves(state.waveData));
+        } else {
+          loadWaves();
+        }
+      }
     }
 
     function updateAiButton() {
@@ -876,7 +890,7 @@ endmodule`;
       row.innerHTML = order.map(([g, backend]) => {
         const r = (gateResults && gateResults[g]) || { status: '—', message: '' };
         const msg = r.message ? `<small>${esc(r.message)}</small>` : '';
-        return `<div class="gate-chip ${gateClass(r.status)}">${g} <small>${backend}</small>${esc(r.status)}${msg}</div>`;
+        return `<div class="gate-chip ${gateClass(r.status)}">${g} <small>${backend}</small> ${esc(r.status)}${msg}</div>`;
       }).join('');
     }
 
@@ -1152,21 +1166,29 @@ endmodule`;
 
     async function fetchDelta(timeNs) {
       if (!state.runId) return;
-      const r = await fetch('/api/delta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run_id: state.runId, time_ns: timeNs }),
-      });
-      const data = await r.json();
-      $('delta-note').textContent = data.message || (data.available ? 'ok' : 'unavailable');
-      const body = $('delta-body');
-      if (!data.rows || !data.rows.length) {
-        body.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted)">No delta rows at this time</td></tr>';
-        return;
+      try {
+        const r = await fetch('/api/delta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ run_id: state.runId, time_ns: timeNs }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          $('delta-note').textContent = data.detail || 'Delta request failed';
+          return;
+        }
+        $('delta-note').textContent = data.message || (data.available ? 'ok' : 'unavailable');
+        const body = $('delta-body');
+        if (!data.rows || !data.rows.length) {
+          body.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted)">No delta rows at this time</td></tr>';
+          return;
+        }
+        body.innerHTML = data.rows.map((row) =>
+          `<tr><td>${esc(row.signal)}</td><td>${esc(row.prev)}</td><td>${esc(row.value)}</td><td>${esc(row.delta_idx)}</td></tr>`
+        ).join('');
+      } catch (e) {
+        $('delta-note').textContent = 'Delta fetch error: ' + e.message;
       }
-      body.innerHTML = data.rows.map((row) =>
-        `<tr><td>${esc(row.signal)}</td><td>${esc(row.prev)}</td><td>${esc(row.value)}</td><td>${esc(row.delta_idx)}</td></tr>`
-      ).join('');
     }
 
     /* ── Tab wiring ── */
@@ -1183,7 +1205,9 @@ endmodule`;
     });
 
     window.addEventListener('resize', () => {
-      if (state.waveData) drawWaves(state.waveData);
+      if (state.waveData && state.activeResult === 'waves') {
+        drawWaves(state.waveData);
+      }
     });
 
     /* ── Toolbar actions ── */

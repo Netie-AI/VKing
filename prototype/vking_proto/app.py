@@ -267,6 +267,8 @@ def api_run(req: RunRequest) -> dict:
         fl_path = run_dir / "filelist.f"
         dut_path.write_text(req.source, encoding="utf-8")
         tb_path.write_text(tb_source, encoding="utf-8")
+        demo_vcd = run_dir / cfg.wave_filename
+        delta.write_demo_vcd(demo_vcd)
         mk_path.write_text(_makefile_text(cfg.tb_top, cfg.wave_filename), encoding="utf-8")
         fl_path.write_text("dut.v\ntb.v\n", encoding="utf-8")
 
@@ -301,6 +303,7 @@ def api_run(req: RunRequest) -> dict:
             "manifest": manifest_dict,
             "log": health.get("install_hint") or "Toolchain missing — artifacts generated, sim skipped.",
             "tb": tb_source,
+            "demo_waves": True,
             "artifact_paths": manifest.artifact_paths.model_dump(),
             "artifact_urls": _artifact_urls(manifest, run_dir),
             "ports": _view_to_dict(view)["ports"],
