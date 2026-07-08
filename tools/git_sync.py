@@ -122,9 +122,20 @@ def _branch_exists(branch: str) -> bool:
 def _checkout_main() -> None:
     if _run(["git", "checkout", MAIN_BRANCH], check=False).returncode == 0:
         return
-    print(f"note: creating empty {MAIN_BRANCH} branch (first merge)")
-    _run(["git", "checkout", "--orphan", MAIN_BRANCH])
-    _run(["git", "reset", "--hard"], check=False)
+    remote_main = _run(["git", "ls-remote", "--heads", "origin", MAIN_BRANCH], check=False)
+    if remote_main.returncode == 0 and (remote_main.stdout or "").strip():
+        _run(["git", "fetch", "origin", MAIN_BRANCH])
+        _run(["git", "checkout", "-b", MAIN_BRANCH, f"origin/{MAIN_BRANCH}"])
+        return
+    print(f"note: {MAIN_BRANCH} does not exist yet — will be created on first merge")
+
+
+def _promote_branch_to_main(branch: str) -> None:
+    """First merge: push run branch directly to main (no orphan checkout)."""
+    _run(["git", "push", "origin", f"{branch}:refs/heads/{MAIN_BRANCH}"])
+    _run(["git", "fetch", "origin", MAIN_BRANCH])
+    _run(["git", "checkout", "-b", MAIN_BRANCH, f"origin/{MAIN_BRANCH}"])
+    print(f"promoted {branch} -> origin/{MAIN_BRANCH}")
 
 
 def merge_run(run_id: str | None = None) -> None:
@@ -154,18 +165,19 @@ def merge_run(run_id: str | None = None) -> None:
         return
 
     _run(["git", "fetch", "origin"])
+    on_main = _run(["git", "ls-remote", "--heads", "origin", MAIN_BRANCH], check=False)
+    main_exists = on_main.returncode == 0 and (on_main.stdout or "").strip()
+
+    if not main_exists:
+        _promote_branch_to_main(branch)
+        return
+
     _checkout_main()
     pull = _run(["git", "pull", "origin", MAIN_BRANCH], check=False)
     if pull.returncode != 0:
-        print(f"note: no existing {MAIN_BRANCH} on origin (first merge)")
-    merge = _run(
-        ["git", "merge", branch, "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"],
-        check=False,
-    )
-    if merge.returncode != 0:
-        # Unrelated histories on first merge from orphan main
-        _run(["git", "merge", branch, "--allow-unrelated-histories", "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"])
-    _run(["git", "push", "-u", "origin", MAIN_BRANCH])
+        print(f"warning: could not pull {MAIN_BRANCH}", file=sys.stderr)
+    _run(["git", "merge", branch, "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"])
+    _run(["git", "push", "origin", MAIN_BRANCH])
     print(f"merged {branch} -> {MAIN_BRANCH} and pushed")
 
 
