@@ -111,6 +111,22 @@ def push_run() -> None:
     print(f"pushed {branch} -> origin ({REMOTE})")
 
 
+def _branch_exists(branch: str) -> bool:
+    local = _run_out(["git", "branch", "--list", branch])
+    if local:
+        return True
+    remote = _run_out(["git", "branch", "-r", "--list", f"origin/{branch}"])
+    return bool(remote)
+
+
+def _checkout_main() -> None:
+    if _run(["git", "checkout", MAIN_BRANCH], check=False).returncode == 0:
+        return
+    print(f"note: creating empty {MAIN_BRANCH} branch (first merge)")
+    _run(["git", "checkout", "--orphan", MAIN_BRANCH])
+    _run(["git", "reset", "--hard"], check=False)
+
+
 def merge_run(run_id: str | None = None) -> None:
     _ensure_git_repo()
     _ensure_remote()
@@ -130,13 +146,26 @@ def merge_run(run_id: str | None = None) -> None:
         sys.exit(1)
 
     branch = run_id
+    if not _branch_exists(branch):
+        print(
+            f"note: no git branch '{branch}' — review recorded (verdict: pass), "
+            f"nothing to merge (work may live on a later run branch)"
+        )
+        return
+
     _run(["git", "fetch", "origin"])
-    _run(["git", "checkout", MAIN_BRANCH])
+    _checkout_main()
     pull = _run(["git", "pull", "origin", MAIN_BRANCH], check=False)
     if pull.returncode != 0:
         print(f"note: no existing {MAIN_BRANCH} on origin (first merge)")
-    _run(["git", "merge", branch, "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"])
-    _run(["git", "push", "origin", MAIN_BRANCH])
+    merge = _run(
+        ["git", "merge", branch, "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"],
+        check=False,
+    )
+    if merge.returncode != 0:
+        # Unrelated histories on first merge from orphan main
+        _run(["git", "merge", branch, "--allow-unrelated-histories", "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"])
+    _run(["git", "push", "-u", "origin", MAIN_BRANCH])
     print(f"merged {branch} -> {MAIN_BRANCH} and pushed")
 
 
