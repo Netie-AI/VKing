@@ -1,5 +1,11 @@
 [
   {
+    "id": "and_gate",
+    "name": "AND gate",
+    "file": "and_gate.v",
+    "description": "Simple combinational AND — good starter DUT."
+  },
+  {
     "id": "shift_2bit",
     "name": "2-bit shift (custom TB)",
     "file": "shift_2bit.v",

@@ -83,8 +83,73 @@ def get_ai_config(
     return _groq_config(model)
 
 
+def list_ai_models() -> list[dict[str, str]]:
+    """Selectable models for UI (providers must have API keys in .env)."""
+    load_env()
+    raw = os.environ.get("VKING_AI_MODELS", "").strip()
+    candidates: list[dict[str, str]] = []
+    if raw:
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and item.get("provider") and item.get("model"):
+                        candidates.append(
+                            {
+                                "provider": str(item["provider"]),
+                                "model": str(item["model"]),
+                                "label": str(item.get("label") or item["model"]),
+                            }
+                        )
+        except json.JSONDecodeError:
+            pass
+
+    if not candidates:
+        if os.environ.get("OPENROUTER_API_KEY", "").strip():
+            for mid in (
+                os.environ.get("OPENROUTER_MODEL", "").strip(),
+                _OPENROUTER_DEFAULT_MODEL,
+                "google/gemma-2-9b-it:free",
+                "qwen/qwen-2-7b-instruct:free",
+            ):
+                if mid:
+                    candidates.append(
+                        {"provider": "openrouter", "model": mid, "label": f"OpenRouter · {mid}"}
+                    )
+        if os.environ.get("GROQ_API_KEY", "").strip():
+            for mid in (
+                os.environ.get("GROQ_MODEL", "").strip(),
+                _GROQ_DEFAULT_MODEL,
+                "llama-3.3-70b-versatile",
+            ):
+                if mid:
+                    candidates.append({"provider": "groq", "model": mid, "label": f"Groq · {mid}"})
+
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, str]] = []
+    for item in candidates:
+        key = (item["provider"], item["model"])
+        if key in seen:
+            continue
+        prov, model = key
+        if prov == "openrouter" and not os.environ.get("OPENROUTER_API_KEY", "").strip():
+            continue
+        if prov == "groq" and not os.environ.get("GROQ_API_KEY", "").strip():
+            continue
+        seen.add(key)
+        out.append(
+            {
+                "id": f"{prov}:{model}",
+                "provider": prov,
+                "model": model,
+                "label": item.get("label") or f"{prov} · {model}",
+            }
+        )
+    return out
+
+
 def benchmark_models() -> list[dict[str, str]]:
-    """Models to benchmark from ``VKING_BENCHMARK_MODELS`` JSON env or defaults."""
+    """Models to benchmark from ``VKING_BENCHMARK_MODELS`` JSON env or :func:`list_ai_models`."""
     load_env()
     raw = os.environ.get("VKING_BENCHMARK_MODELS", "").strip()
     if raw:
@@ -104,18 +169,7 @@ def benchmark_models() -> list[dict[str, str]]:
                     return out
         except json.JSONDecodeError:
             pass
-
-    models: list[dict[str, str]] = []
-    if os.environ.get("GROQ_API_KEY", "").strip():
-        models.append({"provider": "groq", "model": os.environ.get("GROQ_MODEL", "").strip() or _GROQ_DEFAULT_MODEL})
-    if os.environ.get("OPENROUTER_API_KEY", "").strip():
-        models.append(
-            {
-                "provider": "openrouter",
-                "model": os.environ.get("OPENROUTER_MODEL", "").strip() or _OPENROUTER_DEFAULT_MODEL,
-            }
-        )
-    return models
+    return [{"provider": m["provider"], "model": m["model"]} for m in list_ai_models()]
 
 
 def ai_config_public(cfg: dict[str, Any] | None) -> dict[str, str] | None:

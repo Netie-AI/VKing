@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import ai_generate, delta, doctor, gtkwave_launch, ingest, netlist, runner, tbgen, waves
-from .config import ai_config_public, get_ai_config
+from .config import ai_config_public, get_ai_config, list_ai_models
 from .ingest import parse_verilog_source
 from .manifest import ArtifactPaths, GateResult, GateStatus, RunManifest
 from .tbgen import TbGenConfig, generate_clk_rst_smoke
@@ -54,6 +54,8 @@ class AiGenerateRequest(BaseModel):
     source: str | None = None
     prompt: str | None = None
     mode: str = "generate"
+    provider: str | None = None
+    model: str | None = None
 
 
 class WavesRequest(BaseModel):
@@ -186,8 +188,14 @@ def api_doctor() -> dict:
 
 @app.get("/api/ai/status")
 def api_ai_status() -> dict:
+    models = list_ai_models()
     cfg = get_ai_config()
-    return {"available": cfg is not None, "config": ai_config_public(cfg)}
+    return {
+        "available": bool(models),
+        "config": ai_config_public(cfg),
+        "models": models,
+        "default_model_id": models[0]["id"] if models else None,
+    }
 
 
 @app.get("/api/samples")
@@ -294,7 +302,8 @@ def api_tb_add_waves(req: SyncTbRequest) -> dict:
 
 @app.post("/api/ai/generate")
 def api_ai_generate(req: AiGenerateRequest) -> dict:
-    if not get_ai_config():
+    cfg = get_ai_config(provider=req.provider, model=req.model)
+    if not cfg:
         raise HTTPException(
             status_code=503,
             detail="no AI API key configured (set OPENROUTER_API_KEY or GROQ_API_KEY in .env)",
@@ -303,6 +312,8 @@ def api_ai_generate(req: AiGenerateRequest) -> dict:
         source=req.source or "",
         prompt=req.prompt,
         mode=req.mode or "generate",
+        provider=req.provider,
+        model=req.model,
     )
     if not result.get("ok"):
         raise HTTPException(

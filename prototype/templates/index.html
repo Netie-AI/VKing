@@ -664,7 +664,46 @@
       border: 1px solid var(--data-border);
       background: rgba(0, 0, 0, 0.35);
       color: var(--text);
-      max-width: 100%;
+      max-width: 220px;
+    }
+
+    .ai-model-select {
+      font-family: var(--sans);
+      font-size: 0.72rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--data-border);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--text);
+      max-width: 260px;
+    }
+
+    .header-examples {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .header-examples label { white-space: nowrap; }
+
+    .btn-load-example {
+      font-family: var(--sans);
+      font-size: 0.72rem;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .btn-load-example:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     .wave-legend {
@@ -727,6 +766,13 @@
         <h1>Vking</h1>
         <p>Local Verilog Workbench · v0.1</p>
       </div>
+      <div class="header-examples">
+        <label for="sample-select">Examples</label>
+        <select class="sample-select" id="sample-select" title="Optional — does not load until you click Load example">
+          <option value="">— My design —</option>
+        </select>
+        <button type="button" class="btn-load-example" id="btn-load-example" disabled>Load example</button>
+      </div>
       <div class="scan-pill" id="scan-pill" title="">
         <span class="scan-dot" id="scan-dot"></span>
         <span id="scan-label">Checking…</span>
@@ -751,17 +797,16 @@
           </div>
 
           <div class="toolbar glass">
-            <select class="sample-select" id="sample-select" title="Pick a sample DUT"></select>
-            <button type="button" class="secondary" id="btn-demo" title="Load selected sample">① Load</button>
-            <button type="button" id="btn-sync-tb" title="Sync testbench: generates template if TB empty, or adds $dumpvars to your existing TB">② Sync TB</button>
+            <button type="button" id="btn-sync-tb" title="Sync testbench: generates template if TB empty, or adds $dumpvars to your TB">Sync TB</button>
             <button type="button" id="btn-parse">Parse</button>
+            <select class="ai-model-select" id="ai-model-select" title="AI model (set VKING_AI_MODELS in .env for more)"></select>
             <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
-            <button type="button" id="btn-ai-tb" title="AI-generate testbench from DUT (replaces TB tab)">AI TB</button>
+            <button type="button" id="btn-ai-tb" title="AI-generate testbench from DUT">AI TB</button>
             <button type="button" id="btn-ai">AI DUT</button>
-            <button type="button" class="primary" id="btn-run" title="Compile + simulate with Icarus">③ Run Sim</button>
+            <button type="button" class="primary" id="btn-run" title="Compile + simulate — uses your DUT + TB tabs">Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
-          <p class="beginner-strip"><strong>Flow:</strong> Paste DUT (design only) in <em>DUT</em> tab · paste testbench in <em>TB</em> tab (or leave TB empty) · click <strong>Sync TB</strong> · <strong>Run Sim</strong>. Sync TB never deletes your stimulus — it only adds <code>$dumpvars(0, top)</code> if missing.</p>
+          <p class="beginner-strip"><strong>Your flow:</strong> Paste your design in <em>DUT</em> · testbench in <em>TB</em> (optional) · <strong>Sync TB</strong> · <strong>Run Sim</strong>. Examples in the header load only when you click <em>Load example</em> — they never replace your work automatically.</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -910,6 +955,7 @@ endmodule`;
       waveData: null,
       timescaleNs: 1,
       netlistJson: null,
+      aiModelId: null,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -925,6 +971,40 @@ endmodule`;
     function getEditor(id) {
       return $('editor-' + id);
     }
+
+    const EDITOR_STORAGE_KEY = 'vking_editor_draft';
+    let editorSaveTimer = null;
+
+    function saveEditorDraft() {
+      try {
+        localStorage.setItem(
+          EDITOR_STORAGE_KEY,
+          JSON.stringify({ dut: getEditor('dut').value, tb: getEditor('tb').value })
+        );
+      } catch {
+        /* quota / private mode */
+      }
+    }
+
+    function scheduleEditorSave() {
+      clearTimeout(editorSaveTimer);
+      editorSaveTimer = setTimeout(saveEditorDraft, 400);
+    }
+
+    function restoreEditorDraft() {
+      try {
+        const raw = localStorage.getItem(EDITOR_STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (typeof data.dut === 'string') getEditor('dut').value = data.dut;
+        if (typeof data.tb === 'string') getEditor('tb').value = data.tb;
+      } catch {
+        /* ignore corrupt draft */
+      }
+    }
+
+    getEditor('dut').addEventListener('input', scheduleEditorSave);
+    getEditor('tb').addEventListener('input', scheduleEditorSave);
 
     function activeEditorText() {
       return getEditor(state.activeEditor).value;
@@ -1021,16 +1101,52 @@ endmodule`;
       }
     }
 
+    function selectedAiModel() {
+      const sel = $('ai-model-select');
+      const id = sel.value || state.aiModelId;
+      if (!id) return { provider: null, model: null };
+      const opt = sel.selectedOptions[0];
+      if (opt && opt.dataset.provider) {
+        return { provider: opt.dataset.provider, model: opt.dataset.model };
+      }
+      const parts = id.split(':');
+      if (parts.length >= 2) {
+        return { provider: parts[0], model: parts.slice(1).join(':') };
+      }
+      return { provider: null, model: null };
+    }
+
     function renderAiStatus(data) {
       state.aiAvailable = !!data.available;
       const badge = $('ai-badge');
-      if (data.available && data.config) {
-        badge.textContent = 'AI: ' + data.config.provider + ' / ' + data.config.model;
-        badge.classList.add('on');
-      } else {
+      const sel = $('ai-model-select');
+      sel.innerHTML = '';
+      const models = data.models || [];
+      if (!models.length) {
+        sel.innerHTML = '<option value="">No AI keys</option>';
         badge.textContent = 'AI: not configured';
         badge.classList.remove('on');
+        updateAiButton();
+        return;
       }
+      const saved = localStorage.getItem('vking_ai_model');
+      for (const m of models) {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.label || m.id;
+        opt.dataset.provider = m.provider;
+        opt.dataset.model = m.model;
+        sel.appendChild(opt);
+      }
+      const pick = saved && models.some((m) => m.id === saved)
+        ? saved
+        : (data.default_model_id || models[0].id);
+      sel.value = pick;
+      state.aiModelId = pick;
+      localStorage.setItem('vking_ai_model', pick);
+      const cur = models.find((m) => m.id === pick) || models[0];
+      badge.textContent = 'AI: ' + cur.provider + ' / ' + cur.model.split('/').pop();
+      badge.classList.add('on');
       updateAiButton();
     }
 
@@ -1505,10 +1621,11 @@ endmodule`;
     /* ── Toolbar actions ── */
     async function loadSampleList() {
       const sel = $('sample-select');
+      const btn = $('btn-load-example');
       try {
         const r = await fetch('/api/samples');
         const data = await r.json();
-        sel.innerHTML = '';
+        sel.innerHTML = '<option value="">— My design —</option>';
         for (const s of data.samples || []) {
           const opt = document.createElement('option');
           opt.value = s.id;
@@ -1517,28 +1634,53 @@ endmodule`;
           sel.appendChild(opt);
         }
       } catch {
-        sel.innerHTML = '<option value="counter">8-bit counter</option>';
+        sel.innerHTML = '<option value="">— My design —</option>';
       }
+      btn.disabled = !sel.value;
     }
 
     async function loadSelectedSample() {
-      const id = $('sample-select').value || 'counter';
+      const id = $('sample-select').value;
+      if (!id) {
+        $('left-status').textContent = 'Select an example in the header, then Load example';
+        return;
+      }
+      const hasWork = getEditor('dut').value.trim() || getEditor('tb').value.trim();
+      if (hasWork && !confirm('Replace your DUT/TB with the selected example?')) {
+        $('left-status').textContent = 'Kept your design';
+        $('sample-select').value = '';
+        $('btn-load-example').disabled = true;
+        return;
+      }
       try {
         const r = await fetch('/api/samples/' + encodeURIComponent(id));
         const data = await r.json();
         getEditor('dut').value = data.source || '';
         getEditor('tb').value = data.tb_source || '';
-        $('left-status').textContent = 'Loaded sample: ' + (data.name || id) +
-          (data.tb_source ? ' (+ TB)' : ' — click Sync TB or paste your TB');
+        saveEditorDraft();
+        $('left-status').textContent = 'Loaded example: ' + (data.name || id) +
+          ' — edit freely or Sync TB → Run Sim';
       } catch {
-        getEditor('dut').value = DEMO_COUNTER;
-        getEditor('tb').value = '';
-        $('left-status').textContent = 'Loaded fallback counter';
+        $('left-status').textContent = 'Failed to load example';
       }
       setActiveEditor('dut');
     }
 
-    $('btn-demo').addEventListener('click', () => loadSelectedSample());
+    $('sample-select').addEventListener('change', () => {
+      $('btn-load-example').disabled = !$('sample-select').value;
+    });
+
+    $('btn-load-example').addEventListener('click', () => loadSelectedSample());
+
+    $('ai-model-select').addEventListener('change', () => {
+      state.aiModelId = $('ai-model-select').value;
+      localStorage.setItem('vking_ai_model', state.aiModelId);
+      const opt = $('ai-model-select').selectedOptions[0];
+      if (opt && opt.dataset.provider) {
+        $('ai-badge').textContent =
+          'AI: ' + opt.dataset.provider + ' / ' + (opt.dataset.model || '').split('/').pop();
+      }
+    });
 
     async function apiJson(url, body) {
       const r = await fetch(url, {
@@ -1576,6 +1718,7 @@ endmodule`;
       try {
         const data = await apiJson('/api/sync-tb', { source: dut, tb_source: tb.trim() || null });
         if (data.changed !== false) getEditor('tb').value = data.tb || tb;
+        saveEditorDraft();
         if (data.ports) renderPorts(data.ports);
         setActiveEditor('tb');
         $('left-status').textContent = data.message || 'Sync TB done';
@@ -1614,11 +1757,12 @@ endmodule`;
         return;
       }
       const prompt = $('ai-prompt').value.trim() || null;
+      const ai = selectedAiModel();
       $('left-status').textContent = 'AI generating testbench…';
       const r = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: dut, prompt, mode: 'tb' }),
+        body: JSON.stringify({ source: dut, prompt, mode: 'tb', provider: ai.provider, model: ai.model }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -1635,6 +1779,7 @@ endmodule`;
         }
       }
       getEditor('tb').value = tb;
+      saveEditorDraft();
       setActiveEditor('tb');
       $('left-status').textContent =
         'AI TB via ' + data.provider + ' / ' + data.model + ' — review TB tab, then Run Sim';
@@ -1647,11 +1792,12 @@ endmodule`;
       const source = mode === 'improve'
         ? getEditor('dut').value
         : (getEditor('dut').value.trim() || null);
+      const ai = selectedAiModel();
       $('left-status').textContent = 'AI generating DUT (' + mode + ')…';
       const r = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source, prompt, mode }),
+        body: JSON.stringify({ source, prompt, mode, provider: ai.provider, model: ai.model }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -1659,6 +1805,7 @@ endmodule`;
         return;
       }
       getEditor('dut').value = data.verilog || '';
+      saveEditorDraft();
       setActiveEditor('dut');
       $('left-status').textContent =
         'AI DUT via ' + data.provider + ' / ' + data.model;
@@ -1722,6 +1869,7 @@ endmodule`;
 
     fetchDoctor();
     fetchAiStatus();
+    restoreEditorDraft();
     loadSampleList();
   </script>
 </body>

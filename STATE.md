@@ -1,9 +1,9 @@
 # VKing STATE (auto-generated — do not hand-edit; regenerate, don't patch)
-Generated: 2026-07-08T06:25:01Z from run-0017
+Generated: 2026-07-08T06:33:40Z from run-0018
 
 ## Now
-- Target: fix Sync TB Not Found — unified /api/sync-tb
-- Last self_provenance ceiling: L1_compiled
+- Target: header examples dropdown + AI model selector + personal DUT/TB draft persistence
+- Last self_provenance ceiling: L2_sim_active
 - Last review verdict: not yet reviewed
 
 ## Gate snapshot (most recent run only)
@@ -14,8 +14,8 @@ G0 <—>  G1 <—>  G1.5 <—>  G2 <—>  G3 <—>  G4 <—>
 
 ## Drill-down index (read only if the task needs it)
 - Plan: vking-master-plan.md section 9 (UI)
-- Latest handoff: docs/handoffs/run-0017.json
-- Latest review: docs/handoffs/run-0017-review.json
+- Latest handoff: docs/handoffs/run-0018.json
+- Latest review: docs/handoffs/run-0018-review.json
 - Repo knowledge: .cursor/skills/repo-knowledge/<name>/SKILL.md
 
 ## Rule

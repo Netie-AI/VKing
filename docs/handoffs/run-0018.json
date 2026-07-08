@@ -1,0 +1,29 @@
+{
+  "run_id": "run-0018",
+  "timestamp": "2026-07-08T14:35:00+08:00",
+  "target": "header examples dropdown + AI model selector + personal DUT/TB draft persistence",
+  "plan_section": "section 9 (UI)",
+  "interfaces_touched": [
+    "GET /api/ai/status (models[], default_model_id)",
+    "POST /api/ai/generate (provider, model optional)",
+    "GET /api/samples (and_gate entry)"
+  ],
+  "files_changed": [
+    "prototype/templates/index.html",
+    "prototype/vking_proto/config.py",
+    "prototype/vking_proto/app.py",
+    "prototype/examples/samples.json",
+    "prototype/examples/and_gate.v"
+  ],
+  "gate_results": {
+    "api_smoke": "PASS",
+    "G2_counter_sample": "PASS"
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "Examples moved to header with explicit Load example + confirm — never auto-load on page open",
+    "localStorage vking_editor_draft persists user DUT/TB across refresh",
+    "VKING_AI_MODELS env JSON tunes selectable models in toolbar dropdown"
+  ],
+  "open_questions_for_claude": []
+}
