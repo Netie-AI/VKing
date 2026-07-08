@@ -233,7 +233,7 @@ def run_simulation(
             backend="iverilog",
         )
 
-        sim_cmd = [vvp, "-n", "-l", sim_log.name, vvp_path.name, "-fst"]
+        sim_cmd = [vvp, "-n", "-l", sim_log.name, vvp_path.name]
         sim = _run_cmd(sim_cmd, cwd=run_dir, timeout=180)
         log_text = sim_log.read_text(encoding="utf-8") if sim_log.exists() else ""
         if not log_text:
@@ -281,7 +281,7 @@ def run(
     filelist: str,
     module_name: str,
     runs_dir: Path,
-    wave_filename: str = "waves.fst",
+    wave_filename: str = "waves.vcd",
     timescale: str = "1ns/1ps",
 ) -> dict[str, Any]:
     """FastAPI-compatible run entrypoint returning manifest dict + logs."""

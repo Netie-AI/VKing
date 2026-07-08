@@ -14,8 +14,7 @@ class TbGenConfig:
     watchdog_cycles: int = 1000
     vacuity_min: int = 1
     timescale: str = "1ns/1ps"
-    wave_filename: str = "waves.fst"
-    wave_vcd_filename: str = "waves.vcd"
+    wave_filename: str = "waves.vcd"
     tb_top: str = "tb_top"
     clock_period: str = "5"
 
@@ -133,14 +132,9 @@ def generate_clk_rst_smoke(view: ModuleView, config: TbGenConfig | None = None) 
         f"  initial {clk.name} = 1'b0;",
         f"  always #{cfg.clock_period} {clk.name} = ~{clk.name};",
         "",
+        "  // VCD: GTKWave + reconstructed delta panel (single artifact, no -fst pass)",
         "  initial begin",
         f'    $dumpfile("{cfg.wave_filename}");',
-        f"    $dumpvars(0, {cfg.tb_top});",
-        "  end",
-        "",
-        "  // VCD for delta reconstruction panel (GTKWave uses FST via vvp -fst)",
-        "  initial begin",
-        f'    $dumpfile("{cfg.wave_vcd_filename}");',
         f"    $dumpvars(0, {cfg.tb_top});",
         "  end",
         "",
@@ -248,7 +242,7 @@ WAVE ?= {cfg.wave_filename}
 all: sim
 
 sim: run.vvp
-\t$(VVP) -n -l run.log run.vvp -fst
+\t$(VVP) -n -l run.log run.vvp
 
 run.vvp: dut.v tb.v
 \t$(IVERILOG) -g2012 -o $@ -s $(TOP) dut.v tb.v

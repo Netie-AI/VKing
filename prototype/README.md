@@ -7,7 +7,7 @@ Local one-page Verilog workbench: parse ports, generate a `clk_rst_smoke` testbe
 - Gates **G0–G3** prove the TB and DUT are alive and self-consistent; they do **not** prove functional correctness (see honesty banner in the UI).
 - **G0** (Verilator lint) is **N/A** in this prototype.
 - **G2** is pinned to **Icarus 4-state** per the master plan.
-- The delta panel reconstructs from **VCD** only — not the Stage-2 VPI scheduler.
+- Waveforms and the delta panel both use **VCD** in this prototype (GTKWave opens VCD). Reconstructed delta is **not** the Stage-2 VPI scheduler.
 - Vking does **not** bundle simulators; you install toolchain binaries separately.
 
 ## Prerequisites
