@@ -167,7 +167,7 @@ def parse(source: str, top_module: str | None = None) -> dict[str, Any]:
             "ports": [],
             "parameters": [],
             "errors": [str(exc)],
-            "capability_matrix": {"iverilog": "unknown", "verilator": "N/A (prototype)"},
+            "capability_matrix": {"iverilog": "unknown", "verilator": "unknown"},
         }
 
     if top_module and view.name != top_module:
@@ -189,5 +189,5 @@ def parse(source: str, top_module: str | None = None) -> dict[str, Any]:
         "ports": ports,
         "parameters": parameters,
         "errors": errors,
-        "capability_matrix": {"iverilog": "unknown", "verilator": "N/A (prototype)"},
+        "capability_matrix": {"iverilog": "unknown", "verilator": "unknown"},
     }

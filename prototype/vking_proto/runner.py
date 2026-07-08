@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .doctor import ensure_path_env
+from .doctor import ensure_path_env, resolve_tool_exe
 from .ingest import ModuleView, parse_verilog_source
 from .manifest import ArtifactPaths, GateResult, GateStatus, RunManifest
 from .tbgen import TbGenConfig, generate_clk_rst_smoke
@@ -90,7 +90,7 @@ def _parse_sim_log(log_text: str) -> tuple[str | None, list[dict[str, Any]]]:
 
 
 def _gate_g0(dut_path: Path, run_dir: Path) -> GateResult:
-    verilator = shutil.which("verilator")
+    verilator = resolve_tool_exe("verilator")
     if not verilator:
         return GateResult(
             gate="G0",

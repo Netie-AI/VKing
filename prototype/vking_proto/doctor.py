@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -15,6 +16,12 @@ OSS_CAD_SUITE_HINT = (
 )
 
 _TOOLS = ("iverilog", "vvp", "verilator", "gtkwave", "yosys")
+
+# oss-cad-suite on Windows ships Perl wrappers without .exe; real binaries use *_bin.exe.
+_WINDOWS_ALIASES: dict[str, tuple[str, ...]] = {
+    "verilator": ("verilator_bin.exe", "verilator.exe"),
+    "verilator_coverage": ("verilator_coverage_bin.exe", "verilator_coverage.exe"),
+}
 
 _oss_bin_cached: Path | None | bool = False
 
@@ -71,26 +78,64 @@ def ensure_path_env() -> str | None:
     return bin_str
 
 
+def resolve_tool_exe(name: str) -> str | None:
+    """Resolve a toolchain executable, including Windows oss-cad aliases."""
+    ensure_path_env()
+    path = shutil.which(name)
+    if path:
+        return str(Path(path).resolve())
+
+    candidates: list[str] = [f"{name}.exe"]
+    if os.name == "nt":
+        candidates = list(_WINDOWS_ALIASES.get(name, ())) + candidates
+
+    for candidate in candidates:
+        path = shutil.which(candidate)
+        if path:
+            return str(Path(path).resolve())
+
+    oss_bin = find_oss_cad_bin()
+    if oss_bin:
+        for candidate in candidates:
+            direct = oss_bin / candidate
+            if direct.is_file():
+                return str(direct.resolve())
+    return None
+
+
+def short_version(full: str | None) -> str | None:
+    """Compact version label for UI (hide long build strings)."""
+    if not full:
+        return None
+    m = re.search(r"version\s+([\d.]+(?:[+][\d\w-]+)?)", full, re.I)
+    if m:
+        return m.group(1)
+    m = re.search(r"\bv([\d.]+)", full)
+    if m:
+        return m.group(1)
+    m = re.match(r"^(\S+)\s+([\d.+]+)", full)
+    if m:
+        return m.group(2).split()[0]
+    return full[:16]
+
+
 def tool_paths() -> dict[str, str | None]:
     """Return resolved executable paths for prototype toolchain tools."""
     ensure_path_env()
     paths: dict[str, str | None] = {}
     for tool in _TOOLS:
-        resolved = shutil.which(tool)
-        paths[tool] = str(Path(resolved).resolve()) if resolved else None
+        resolved = resolve_tool_exe(tool)
+        paths[tool] = resolved
     oss_bin = find_oss_cad_bin()
     paths["oss_cad_suite_bin"] = str(oss_bin) if oss_bin else None
     return paths
 
 
 def _probe_version(exe: str) -> str | None:
-    path = shutil.which(exe)
-    if not path:
-        return None
     for flag in ("-V", "--version", "-version"):
         try:
             proc = subprocess.run(
-                [path, flag],
+                [exe, flag],
                 capture_output=True,
                 text=True,
                 timeout=15,
@@ -101,7 +146,7 @@ def _probe_version(exe: str) -> str | None:
         out = ((proc.stdout or "") + (proc.stderr or "")).strip()
         if out:
             return out.splitlines()[0].strip()
-    return path
+    return exe
 
 
 def check_toolchain() -> dict[str, dict[str, Any]]:
@@ -109,11 +154,13 @@ def check_toolchain() -> dict[str, dict[str, Any]]:
     ensure_path_env()
     report: dict[str, dict[str, Any]] = {}
     for tool in _TOOLS:
-        path = shutil.which(tool)
+        path = resolve_tool_exe(tool)
+        version = _probe_version(path) if path else None
         report[tool] = {
             "available": path is not None,
             "path": path,
-            "version": _probe_version(tool) if path else None,
+            "version": version,
+            "version_short": short_version(version),
         }
     return report
 

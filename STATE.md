@@ -1,8 +1,8 @@
 # VKing STATE (auto-generated — do not hand-edit; regenerate, don't patch)
-Generated: 2026-07-08T05:55:06Z from run-0012
+Generated: 2026-07-08T06:01:55Z from run-0013
 
 ## Now
-- Target: v0.1 prototype — port 9000, sample DUTs, wave canvas fix
+- Target: v0.1 prototype — UI cleanup, verilator fix, AI benchmark harness
 - Last self_provenance ceiling: L2_sim_active
 - Last review verdict: not yet reviewed
 
@@ -10,13 +10,13 @@ Generated: 2026-07-08T05:55:06Z from run-0012
 G0 <—>  G1 <—>  G1.5 <—>  G2 <✔>  G3 <—>  G4 <—>
 
 ## Open questions (carried from latest handoff)
-- Review L2_sim_active from run_samples.py batch (3 DUTs)
-- Confirm port 9000 documented sufficiently for daily use
+- Review AI benchmark scores — switch default model or keep template TB as primary?
+- OpenRouter free model 404 — update VKING_BENCHMARK_MODELS default?
 
 ## Drill-down index (read only if the task needs it)
-- Plan: vking-master-plan.md section 9 (UI) + prototype smoke samples
-- Latest handoff: docs/handoffs/run-0012.json
-- Latest review: docs/handoffs/run-0012-review.json
+- Plan: vking-master-plan.md section 9 (UI) + AI TB generation + toolchain doctor
+- Latest handoff: docs/handoffs/run-0013.json
+- Latest review: docs/handoffs/run-0013-review.json
 - Repo knowledge: .cursor/skills/repo-knowledge/<name>/SKILL.md
 
 ## Rule

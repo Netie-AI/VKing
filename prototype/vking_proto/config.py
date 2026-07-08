@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -32,33 +33,89 @@ def load_env() -> Path | None:
     return None
 
 
-def get_ai_config() -> dict[str, str] | None:
+def _openrouter_config(model_override: str | None = None) -> dict[str, str] | None:
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        return None
+    model = (
+        model_override
+        or os.environ.get("OPENROUTER_MODEL", "").strip()
+        or os.environ.get("AI_MODEL", "").strip()
+        or _OPENROUTER_DEFAULT_MODEL
+    )
+    return {"provider": "openrouter", "api_key": key, "model": model}
+
+
+def _groq_config(model_override: str | None = None) -> dict[str, str] | None:
+    key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not key:
+        return None
+    model = (
+        model_override
+        or os.environ.get("GROQ_MODEL", "").strip()
+        or os.environ.get("AI_MODEL", "").strip()
+        or _GROQ_DEFAULT_MODEL
+    )
+    return {"provider": "groq", "api_key": key, "model": model}
+
+
+def get_ai_config(
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+) -> dict[str, str] | None:
     """Return ``{provider, api_key, model}`` or ``None`` if no key is set.
 
-    Priority: ``OPENROUTER_API_KEY`` then ``GROQ_API_KEY``.
-    Never logs or prints key material.
+    Priority when *provider* is unset: OpenRouter then Groq.
     """
     load_env()
+    provider = (provider or "").strip().lower() or None
+    model = (model or "").strip() or None
 
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if openrouter_key:
-        model = (
-            os.environ.get("OPENROUTER_MODEL", "").strip()
-            or os.environ.get("AI_MODEL", "").strip()
-            or _OPENROUTER_DEFAULT_MODEL
+    if provider == "openrouter":
+        return _openrouter_config(model)
+    if provider == "groq":
+        return _groq_config(model)
+
+    cfg = _openrouter_config(model)
+    if cfg:
+        return cfg
+    return _groq_config(model)
+
+
+def benchmark_models() -> list[dict[str, str]]:
+    """Models to benchmark from ``VKING_BENCHMARK_MODELS`` JSON env or defaults."""
+    load_env()
+    raw = os.environ.get("VKING_BENCHMARK_MODELS", "").strip()
+    if raw:
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                out: list[dict[str, str]] = []
+                for item in data:
+                    if isinstance(item, dict) and item.get("provider") and item.get("model"):
+                        out.append(
+                            {
+                                "provider": str(item["provider"]),
+                                "model": str(item["model"]),
+                            }
+                        )
+                if out:
+                    return out
+        except json.JSONDecodeError:
+            pass
+
+    models: list[dict[str, str]] = []
+    if os.environ.get("GROQ_API_KEY", "").strip():
+        models.append({"provider": "groq", "model": os.environ.get("GROQ_MODEL", "").strip() or _GROQ_DEFAULT_MODEL})
+    if os.environ.get("OPENROUTER_API_KEY", "").strip():
+        models.append(
+            {
+                "provider": "openrouter",
+                "model": os.environ.get("OPENROUTER_MODEL", "").strip() or _OPENROUTER_DEFAULT_MODEL,
+            }
         )
-        return {"provider": "openrouter", "api_key": openrouter_key, "model": model}
-
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if groq_key:
-        model = (
-            os.environ.get("GROQ_MODEL", "").strip()
-            or os.environ.get("AI_MODEL", "").strip()
-            or _GROQ_DEFAULT_MODEL
-        )
-        return {"provider": "groq", "api_key": groq_key, "model": model}
-
-    return None
+    return models
 
 
 def ai_config_public(cfg: dict[str, Any] | None) -> dict[str, str] | None:

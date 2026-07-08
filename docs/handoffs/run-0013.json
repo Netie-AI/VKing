@@ -1,0 +1,43 @@
+{
+  "run_id": "run-0013",
+  "timestamp": "2026-07-08T14:15:00+08:00",
+  "target": "v0.1 prototype — UI cleanup, verilator fix, AI benchmark harness",
+  "plan_section": "section 9 (UI) + AI TB generation + toolchain doctor",
+  "interfaces_touched": [
+    "doctor (Windows verilator_bin.exe resolution, version_short)",
+    "IUIRenderer (compact tool dots, Summary tab replaces G0-G3 chips)",
+    "ai_generate (structured prompts, verify_verilog, tb_top normalization)",
+    "scripts/api_smoke.py + scripts/ai_benchmark.py"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/doctor.py",
+    "prototype/vking_proto/runner.py",
+    "prototype/vking_proto/config.py",
+    "prototype/vking_proto/ai_generate.py",
+    "prototype/vking_proto/ingest.py",
+    "prototype/templates/index.html",
+    "prototype/scripts/api_smoke.py",
+    "prototype/scripts/ai_benchmark.py",
+    "prototype/Makefile"
+  ],
+  "gate_results": {
+    "G2": "PASS",
+    "run_samples": "3/3 PASS (template TB)",
+    "api_smoke": "all endpoints PASS on port 9000",
+    "verilator_doctor": "available via verilator_bin.exe v5.050",
+    "ai_benchmark": {
+      "groq/llama-3.1-8b-instant": "0/3 PASS — COMPILE_FAIL (bad TB: assigns to DUT outputs, malformed literals)",
+      "openrouter/meta-llama/llama-3.1-8b-instruct:free": "0/3 AI_FAIL HTTP 404"
+    }
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "Verilator on Windows is verilator_bin.exe not Perl wrapper — doctor now resolves aliases",
+    "G0-G3 hidden from UI; Summary tab shows Compile/Simulate/Lint/Result in plain language",
+    "AI TB generation still fails compile on Groq 8b — template Sync TB remains reliable path"
+  ],
+  "open_questions_for_claude": [
+    "Review AI benchmark scores — switch default model or keep template TB as primary?",
+    "OpenRouter free model 404 — update VKING_BENCHMARK_MODELS default?"
+  ]
+}

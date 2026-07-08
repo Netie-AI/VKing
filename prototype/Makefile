@@ -17,6 +17,12 @@ doctor:
 samples:
 	$(PYTHON) scripts/run_samples.py
 
+api-smoke:
+	$(PYTHON) scripts/api_smoke.py
+
+ai-benchmark:
+	$(PYTHON) scripts/ai_benchmark.py
+
 clean:
 	rm -rf runs/*
 	rm -rf __pycache__ vking_proto/__pycache__

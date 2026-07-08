@@ -162,16 +162,77 @@
     }
 
     .doctor-chip {
-      font-size: 0.7rem;
-      padding: 3px 9px;
+      font-size: 0.65rem;
+      padding: 2px 7px;
       border-radius: 999px;
       border: 1px solid var(--glass-border);
       background: rgba(255, 255, 255, 0.04);
       white-space: nowrap;
+      max-width: 4.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .doctor-chip.ok { color: var(--success); border-color: rgba(94, 228, 168, 0.35); }
     .doctor-chip.bad { color: var(--danger); border-color: rgba(255, 107, 107, 0.35); }
+
+    .tool-strip {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .tool-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--danger);
+      flex-shrink: 0;
+    }
+
+    .tool-dot.ok { background: var(--success); }
+
+    .run-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 8px;
+    }
+
+    .run-card {
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
+      text-align: center;
+    }
+
+    .run-card.pass { border-color: rgba(94, 228, 168, 0.4); }
+    .run-card.fail { border-color: rgba(255, 107, 107, 0.4); }
+
+    .run-card .rc-label {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .run-card .rc-val {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .run-card.pass .rc-val { color: var(--success); }
+    .run-card.fail .rc-val { color: var(--danger); }
+
+    .wave-legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
 
     /* ── Workbench layout ── */
     .workbench {
@@ -629,11 +690,6 @@
       white-space: pre-wrap;
       word-break: break-all;
     }
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-      display: inline-block;
-    }
   </style>
 </head>
 <body>
@@ -645,14 +701,12 @@
         <p>Local Verilog Workbench · v0.1</p>
       </div>
       <div class="honesty-banner">
-        G0–G3 verify the testbench and DUT are alive and self-consistent.
-        Functional correctness requires G4 or your own review.
-        Green chips are not &ldquo;verified correct.&rdquo;
+        Compile + sim prove the testbench runs — not that your design is functionally correct.
       </div>
-      <div class="scan-pill" id="scan-pill">
+      <div class="scan-pill" id="scan-pill" title="">
         <span class="scan-dot" id="scan-dot"></span>
-        <span id="scan-label">Checking toolchain…</span>
-        <span id="doctor-chips"></span>
+        <span id="scan-label">Checking…</span>
+        <span class="tool-strip" id="tool-strip"></span>
       </div>
     </header>
 
@@ -695,7 +749,7 @@
       <!-- RIGHT: results -->
       <section class="col-right">
         <nav class="tabs glass" id="result-tabs" role="tablist">
-          <button type="button" class="active" data-result="gates">Gates</button>
+          <button type="button" class="active" data-result="summary">Summary</button>
           <button type="button" data-result="log">Log</button>
           <button type="button" data-result="delta">Delta</button>
           <button type="button" data-result="waves">Waves</button>
@@ -703,8 +757,8 @@
         </nav>
 
         <div class="panel-stack data-panel">
-          <!-- Gates -->
-          <div class="result-pane active" id="result-gates">
+          <!-- Summary -->
+          <div class="result-pane active" id="result-summary">
             <div class="result-body">
               <div class="block-gap">
                 <div class="section-label">Port table</div>
@@ -719,12 +773,12 @@
               </div>
 
               <div class="block-gap">
-                <div class="section-label">Gates (backend-labeled)</div>
-                <div class="gate-row" id="gate-row">
-                  <div class="gate-chip na">G0 <small>verilator</small>—</div>
-                  <div class="gate-chip na">G1 <small>iverilog</small>—</div>
-                  <div class="gate-chip na">G1.5 <small>iverilog</small>—</div>
-                  <div class="gate-chip na">G2 <small>iverilog</small>—</div>
+                <div class="section-label">Run status</div>
+                <div class="run-cards" id="run-summary">
+                  <div class="run-card"><span class="rc-label">Compile</span><span class="rc-val">—</span></div>
+                  <div class="run-card"><span class="rc-label">Simulate</span><span class="rc-val">—</span></div>
+                  <div class="run-card"><span class="rc-label">Lint</span><span class="rc-val">—</span></div>
+                  <div class="run-card"><span class="rc-label">Result</span><span class="rc-val">—</span></div>
                 </div>
               </div>
 
@@ -831,7 +885,7 @@ endmodule`;
       runId: null,
       artifactUrls: {},
       activeEditor: 'dut',
-      activeResult: 'gates',
+      activeResult: 'summary',
       waveData: null,
       timescaleNs: 1,
       netlistJson: null,
@@ -904,20 +958,29 @@ endmodule`;
     }
 
     function renderDoctor(data) {
-      const chipsEl = $('doctor-chips');
+      const strip = $('tool-strip');
       const tools = data.tools || {};
-      chipsEl.innerHTML = '';
-      const toolNames = ['iverilog', 'vvp', 'gtkwave', 'yosys', 'verilator'];
-      let allOk = true;
-      for (const name of toolNames) {
-        const t = tools[name] || {};
-        const chip = document.createElement('span');
-        chip.className = 'doctor-chip ' + (t.available ? 'ok' : 'bad');
-        chip.textContent = name + ': ' + (t.available ? (t.version || 'ok') : 'missing');
-        chip.title = t.message || t.path || '';
-        chipsEl.appendChild(chip);
-        if (!t.available && name !== 'verilator') allOk = false;
+      const labels = [
+        ['sim', 'iverilog', 'vvp'],
+        ['waves', 'gtkwave'],
+        ['lint', 'verilator'],
+        ['synth', 'yosys'],
+      ];
+      strip.innerHTML = '';
+      const tipParts = [];
+      for (const [label, ...keys] of labels) {
+        const ok = keys.every((k) => tools[k]?.available);
+        const dot = document.createElement('span');
+        dot.className = 'tool-dot ' + (ok ? 'ok' : '');
+        dot.title = label + (ok ? ' ready' : ' missing');
+        strip.appendChild(dot);
+        for (const k of keys) {
+          const t = tools[k] || {};
+          tipParts.push(`${k}: ${t.available ? (t.version_short || 'ok') : 'missing'}`);
+        }
       }
+      $('scan-pill').title = tipParts.join('\n');
+
       state.simReady = !!data.sim_ready;
       state.wavesReady = !!data.waves_ready;
       $('btn-run').disabled = !state.simReady;
@@ -926,14 +989,13 @@ endmodule`;
       const label = $('scan-label');
       if (state.simReady) {
         dot.className = 'scan-dot';
-        label.textContent = 'Sim ready';
+        label.textContent = 'Ready';
       } else {
         dot.className = 'scan-dot warn';
-        label.textContent = 'Sim unavailable';
+        label.textContent = 'No sim';
         $('left-status').textContent =
-          data.install_hint || 'iverilog/vvp not found — install oss-cad-suite; parse still works.';
+          data.install_hint || 'Install oss-cad-suite at C:\\oss-cad-suite';
       }
-      if (!allOk && !state.simReady) dot.className = 'scan-dot bad';
     }
 
     function renderAiStatus(data) {
@@ -960,19 +1022,26 @@ endmodule`;
       ).join('');
     }
 
-    function renderGates(gateResults) {
-      const row = $('gate-row');
-      const order = [
-        ['G0', 'verilator'],
-        ['G1', 'iverilog'],
-        ['G1.5', 'iverilog'],
-        ['G2', 'iverilog'],
+    function renderRunSummary(manifest, logText) {
+      const el = $('run-summary');
+      const gates = (manifest && manifest.gate_results) || {};
+      const g1 = (gates.G1 && gates.G1.status) || '—';
+      const g2 = (gates.G2 && gates.G2.status) || '—';
+      const g0 = (gates.G0 && gates.G0.status) || '—';
+      let vking = '—';
+      if (logText) {
+        const m = String(logText).match(/VKING_RESULT:\s*(\w+)/i);
+        if (m) vking = m[1].toUpperCase();
+      }
+      const cards = [
+        ['Compile', g1],
+        ['Simulate', g2],
+        ['Lint', g0],
+        ['Result', vking],
       ];
-      row.innerHTML = order.map(([g, backend]) => {
-        const r = (gateResults && gateResults[g]) || { status: '—', message: '' };
-        const msg = r.message ? `<small>${esc(r.message)}</small>` : '';
-        return `<div class="gate-chip ${gateClass(r.status)}">${g} <small>${backend}</small> ${esc(r.status)}${msg}</div>`;
-      }).join('');
+      el.innerHTML = cards.map(([lbl, val]) =>
+        `<div class="run-card ${gateClass(val)}"><span class="rc-label">${esc(lbl)}</span><span class="rc-val">${esc(val)}</span></div>`
+      ).join('');
     }
 
     function renderArtifacts(urls) {
@@ -1010,7 +1079,7 @@ endmodule`;
       state.runId = data.manifest.run_id;
       state.artifactUrls = data.artifact_urls || {};
       renderPorts(data.ports);
-      renderGates(data.manifest.gate_results);
+      renderRunSummary(data.manifest, data.log);
       $('sim-log').textContent = data.log || '(empty log)';
       renderArtifacts(state.artifactUrls);
       getEditor('manifest').value = JSON.stringify(data.manifest, null, 2);
@@ -1044,7 +1113,7 @@ endmodule`;
         const r = await fetch('/api/doctor');
         renderDoctor(await r.json());
       } catch {
-        $('doctor-chips').innerHTML = '<span class="doctor-chip bad">doctor failed</span>';
+        $('scan-label').textContent = 'Doctor failed';
         $('scan-dot').className = 'scan-dot bad';
       }
     }
