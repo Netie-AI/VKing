@@ -15,6 +15,7 @@ class TbGenConfig:
     vacuity_min: int = 1
     timescale: str = "1ns/1ps"
     wave_filename: str = "waves.fst"
+    wave_vcd_filename: str = "waves.vcd"
     tb_top: str = "tb_top"
     clock_period: str = "5"
 
@@ -134,6 +135,12 @@ def generate_clk_rst_smoke(view: ModuleView, config: TbGenConfig | None = None) 
         "",
         "  initial begin",
         f'    $dumpfile("{cfg.wave_filename}");',
+        f"    $dumpvars(0, {cfg.tb_top});",
+        "  end",
+        "",
+        "  // VCD for delta reconstruction panel (GTKWave uses FST via vvp -fst)",
+        "  initial begin",
+        f'    $dumpfile("{cfg.wave_vcd_filename}");',
         f"    $dumpvars(0, {cfg.tb_top});",
         "  end",
         "",

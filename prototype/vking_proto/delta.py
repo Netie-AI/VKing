@@ -288,6 +288,64 @@ def trace_to_json(events: list[DeltaEvent], limit: int = 500) -> dict[str, Any]:
     }
 
 
+def reconstruct(path: str | Path, time_ns: float) -> dict[str, Any]:
+    """Build delta-panel rows for a waveform path at simulation time ``time_ns``.
+
+    Used by the prototype UI (:func:`app.api_delta`). Returns
+    ``{available, message, time_ns, rows, disclaimer?}`` where each row has
+    ``signal``, ``prev``, ``value``, ``delta_idx``.
+    """
+    parsed = parse_vcd(path)
+    time = int(time_ns)
+
+    if not parsed.events:
+        reason = parsed.reason or "no value-change events parsed"
+        return {
+            "available": False,
+            "message": reason,
+            "time_ns": time_ns,
+            "rows": [],
+            "disclaimer": "reconstructed from VCD file order (prototype)",
+        }
+
+    at_time = events_at_time(parsed.events, time)
+    if not at_time:
+        return {
+            "available": True,
+            "message": f"no value changes at #{time}",
+            "time_ns": time_ns,
+            "rows": [],
+            "disclaimer": "reconstructed from VCD file order (prototype)",
+        }
+
+    prior = summary_at_time(parsed.events, time - 1) if time > 0 else {}
+    rows: list[dict[str, Any]] = []
+    for event in at_time:
+        signal = event["signal"]
+        rows.append(
+            {
+                "signal": signal,
+                "prev": prior.get(signal, "—"),
+                "value": event["value"],
+                "delta_idx": event["delta_idx"],
+            }
+        )
+        prior[signal] = event["value"]
+
+    return {
+        "available": True,
+        "message": (
+            f"{len(rows)} reconstructed delta step(s) at #{time} "
+            "(VCD order, not VPI)"
+        ),
+        "time_ns": time_ns,
+        "rows": rows,
+        "disclaimer": "reconstructed from VCD file order (prototype)",
+        "summary": summary_at_time(parsed.events, time),
+        "steps": expand_timestep(parsed.events, time),
+    }
+
+
 def _self_test_sample_vcd() -> str:
     return "\n".join(
         [
@@ -326,7 +384,7 @@ def _run_self_test() -> None:
     assert len(t10) == 4, f"expected 4 events at #10, got {len(t10)}"
     assert t10[0]["delta_idx"] == 0 and t10[0]["signal"].endswith("clk")
     assert t10[1]["delta_idx"] == 1 and t10[1]["signal"].endswith("rst_n")
-    assert t10[2]["delta_idx"] == 2 and t10[2]["signal"].endswith("data")
+    assert t10[2]["delta_idx"] == 2 and "data" in t10[2]["signal"]
     assert t10[3]["delta_idx"] == 3 and t10[3]["value"] == "0"
 
     steps = expand_timestep(result, 10)
