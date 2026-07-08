@@ -1,0 +1,23 @@
+{
+  "run_id": "run-0007",
+  "timestamp": "2026-07-08T13:15:00+08:00",
+  "target": "v0.1 prototype — reconstructed delta layer from VCD (pre-Stage-2)",
+  "plan_section": "section 3 UC6 long-term / section 9 delta panel (prototype VCD reconstruction)",
+  "interfaces_touched": ["IUIRenderer delta panel (via delta.reconstruct API)"],
+  "files_changed": [
+    "prototype/vking_proto/delta.py",
+    "prototype/vking_proto/vcd_writer.py",
+    "prototype/vking_proto/tbgen.py"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "Delta indices are VCD file-order reconstruction, not Stage-2 VPI scheduler hooks",
+    "tbgen now emits dual $dumpfile blocks (waves.fst + waves.vcd); Icarus -fst caveat documented in vcd_writer",
+    "FST inputs return empty events with deferred reason — delta panel requires VCD"
+  ],
+  "open_questions_for_claude": [
+    "Review dual $dumpfile tbgen emission vs single vvp -fst run (may need two-pass sim for both artifacts)",
+    "Confirm delta.reconstruct response shape matches index.html rows contract"
+  ]
+}

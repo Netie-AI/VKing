@@ -1,0 +1,29 @@
+{
+  "run_id": "run-0008",
+  "timestamp": "2026-07-08T13:20:00+08:00",
+  "target": "v0.1 prototype — functional daily-use workbench (VCD waves + delta panel)",
+  "plan_section": "section 9 (UI v0.1) + section 3 UC6 prototype (VCD reconstruction only)",
+  "interfaces_touched": [
+    "ISimBackend (runner vvp without -fst)",
+    "ITBGenerator (single waves.vcd dump)",
+    "IUIRenderer (delta panel copy)"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/tbgen.py",
+    "prototype/vking_proto/runner.py",
+    "prototype/vking_proto/app.py",
+    "prototype/templates/index.html",
+    "prototype/README.md"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "Prototype uses VCD for both GTKWave and delta panel instead of FST (master plan section 6.1 FST via vvp -fst) to keep one sim pass and working delta reconstruction",
+    "Delta indices remain VCD file-order reconstruction, not Stage-2 VPI scheduler hooks",
+    "iverilog/vvp not on PATH in dev environment — end-to-end sim not executed here"
+  ],
+  "open_questions_for_claude": [
+    "Review single-VCD prototype tradeoff vs dual FST+VCD when oss-cad-suite is installed",
+    "Confirm run-0006 self_provenance L2_sim_active claim if sim was not run on agent host"
+  ]
+}

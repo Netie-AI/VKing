@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import ai_generate, delta, doctor, ingest, runner, tbgen, waves
-from .config import get_ai_config
+from .config import ai_config_public, get_ai_config
 from .ingest import parse_verilog_source
 from .manifest import ArtifactPaths, GateResult, GateStatus, RunManifest
 from .tbgen import TbGenConfig, generate_clk_rst_smoke
@@ -145,6 +145,12 @@ def _resolve_wave_path(run_id: str | None, wave_path: str | None) -> Path:
     raise HTTPException(status_code=404, detail="no waveform artifact for run")
 
 
+def _tb_for_run(view: ingest.ModuleView, cfg: TbGenConfig, tb_override: str | None) -> str:
+    if tb_override:
+        return tb_override
+    return generate_clk_rst_smoke(view, cfg)
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> HTMLResponse:
     index_path = TEMPLATES / "index.html"
@@ -156,6 +162,12 @@ def index() -> HTMLResponse:
 @app.get("/api/doctor")
 def api_doctor() -> dict:
     return doctor.doctor_report()
+
+
+@app.get("/api/ai/status")
+def api_ai_status() -> dict:
+    cfg = get_ai_config()
+    return {"available": cfg is not None, "config": ai_config_public(cfg)}
 
 
 @app.get("/api/demo/counter")
@@ -238,13 +250,11 @@ def api_run(req: RunRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     cfg = TbGenConfig()
-    if req.tb_source:
-        tb_source = req.tb_source
-    else:
-        try:
-            tb_source = generate_clk_rst_smoke(view, cfg)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        tb_source = _tb_for_run(view, cfg, req.tb_source)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     health = doctor.doctor_report()
 
     if not health["sim_ready"]:
@@ -290,6 +300,7 @@ def api_run(req: RunRequest) -> dict:
         return {
             "manifest": manifest_dict,
             "log": health.get("install_hint") or "Toolchain missing — artifacts generated, sim skipped.",
+            "tb": tb_source,
             "artifact_paths": manifest.artifact_paths.model_dump(),
             "artifact_urls": _artifact_urls(manifest, run_dir),
             "ports": _view_to_dict(view)["ports"],
@@ -325,6 +336,7 @@ def api_run(req: RunRequest) -> dict:
     return {
         "manifest": manifest_dict,
         "log": log_text,
+        "tb": tb_source,
         "artifact_paths": manifest.artifact_paths.model_dump(),
         "artifact_urls": _artifact_urls(manifest, run_dir),
         "ports": _view_to_dict(view)["ports"],
@@ -359,7 +371,7 @@ def api_delta(req: DeltaRequest) -> dict:
                 return delta.reconstruct(fst, req.time_ns)
             return {
                 "available": False,
-                "message": "no VCD for this run — delta panel needs VCD (prototype uses VCD, not FST)",
+                "message": "no VCD for this run — delta panel needs VCD",
                 "time_ns": req.time_ns,
                 "rows": [],
             }

@@ -1,8 +1,8 @@
 # VKing STATE (auto-generated — do not hand-edit; regenerate, don't patch)
-Generated: 2026-07-08T05:32:14Z from run-0009
+Generated: 2026-07-08T05:37:28Z from run-0010
 
 ## Now
-- Target: v0.1 prototype — AI generate, sync-tb, wave canvas APIs
+- Target: v0.1 prototype — glass-morphism workbench UI
 - Last self_provenance ceiling: L1_compiled
 - Last review verdict: not yet reviewed
 
@@ -10,13 +10,13 @@ Generated: 2026-07-08T05:32:14Z from run-0009
 G0 <—>  G1 <—>  G1.5 <—>  G2 <—>  G3 <—>  G4 <—>
 
 ## Open questions (carried from latest handoff)
-- Review AI provider env priority (OPENROUTER before GROQ) and default free-tier models
-- Confirm wave canvas signal heuristics (clk/rst/count/out) match UI expectations
+- Review glass vs dense-panel balance against v0.7 rule (glass strictly on nav/overlays)
+- Confirm wave canvas click-to-delta time conversion from VCD timescale is acceptable for prototype
 
 ## Drill-down index (read only if the task needs it)
-- Plan: vking-master-plan.md section 9 (UI v0.1) + section 3 UC6 prototype
-- Latest handoff: docs/handoffs/run-0009.json
-- Latest review: docs/handoffs/run-0009-review.json
+- Plan: vking-master-plan.md section 9 (UI v0.1) + v0.7 UI direction (dense data panels + glass chrome)
+- Latest handoff: docs/handoffs/run-0010.json
+- Latest review: docs/handoffs/run-0010-review.json
 - Repo knowledge: .cursor/skills/repo-knowledge/<name>/SKILL.md
 
 ## Rule

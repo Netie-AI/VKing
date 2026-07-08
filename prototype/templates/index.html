@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vking Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep: #070a12;
+      --bg-mesh-1: #0d1528;
+      --bg-mesh-2: #121a32;
+      --glass: rgba(255, 255, 255, 0.055);
+      --glass-strong: rgba(255, 255, 255, 0.09);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-highlight: rgba(255, 255, 255, 0.22);
+      --blur: 28px;
+      --data-bg: rgba(8, 12, 22, 0.92);
+      --data-border: rgba(255, 255, 255, 0.08);
+      --text: rgba(255, 255, 255, 0.92);
+      --text-muted: rgba(255, 255, 255, 0.55);
+      --accent: #6eb5ff;
+      --accent-soft: rgba(110, 181, 255, 0.18);
+      --success: #5ee4a8;
+      --warn: #ffb347;
+      --danger: #ff6b6b;
+      --na: rgba(255, 255, 255, 0.35);
+      --serif: "Newsreader", Georgia, serif;
+      --sans: "Outfit", system-ui, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+      --radius: 18px;
+      --radius-sm: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--bg-deep);
+    }
+
+    .mesh-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 10%, rgba(62, 120, 255, 0.22), transparent 55%),
+        radial-gradient(ellipse 70% 50% at 85% 20%, rgba(140, 90, 255, 0.14), transparent 50%),
+        radial-gradient(ellipse 60% 40% at 50% 90%, rgba(40, 180, 200, 0.1), transparent 55%),
+        linear-gradient(165deg, var(--bg-mesh-1) 0%, var(--bg-deep) 45%, var(--bg-mesh-2) 100%);
+    }
+
+    .mesh-bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 14px 16px 16px;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(var(--blur)) saturate(160%);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow:
+        inset 0 1px 0 var(--glass-highlight),
+        0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .data-panel {
+      background: var(--data-bg);
+      border: 1px solid var(--data-border);
+      border-radius: var(--radius-sm);
+    }
+
+    /* ── Header ── */
+    header {
+      flex-shrink: 0;
+      padding: 14px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px 20px;
+    }
+
+    .brand h1 {
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 2px;
+    }
+
+    .honesty-banner {
+      flex: 1 1 280px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 179, 71, 0.08);
+      border: 1px solid rgba(255, 179, 71, 0.25);
+    }
+
+    .scan-pill {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: var(--glass-strong);
+      border: 1px solid var(--glass-border);
+      max-width: 100%;
+    }
+
+    .scan-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+      animation: pulse 2s ease infinite;
+    }
+
+    .scan-dot.warn { background: var(--warn); }
+    .scan-dot.bad { background: var(--danger); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .doctor-chip {
+      font-size: 0.7rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.04);
+      white-space: nowrap;
+    }
+
+    .doctor-chip.ok { color: var(--success); border-color: rgba(94, 228, 168, 0.35); }
+    .doctor-chip.bad { color: var(--danger); border-color: rgba(255, 107, 107, 0.35); }
+
+    /* ── Workbench layout ── */
+    .workbench {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      gap: 12px;
+    }
+
+    .col-left {
+      flex: 0 0 55%;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-right {
+      flex: 0 0 calc(45% - 12px);
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    @media (max-width: 960px) {
+      .workbench { flex-direction: column; overflow: auto; }
+      html, body { overflow: auto; }
+      .app { height: auto; min-height: 100vh; }
+      .col-left, .col-right { flex: 1 1 auto; }
+    }
+
+    /* ── Tab bars ── */
+    nav.tabs {
+      display: flex;
+      gap: 4px;
+      padding: 5px;
+      border-radius: 999px;
+      flex-shrink: 0;
+      width: fit-content;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    nav.tabs button {
+      font-family: var(--sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    nav.tabs button.active {
+      background: var(--glass-strong);
+      color: var(--text);
+      border: 1px solid var(--glass-border);
+      box-shadow: inset 0 1px 0 var(--glass-highlight);
+    }
+
+    nav.tabs button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Editor / result panels ── */
+    .panel-stack {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .editor-pane {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+    }
+
+    .editor-pane.active {
+      display: flex;
+    }
+
+    .result-pane {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .result-pane.active {
+      display: flex;
+    }
+
+    .result-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 16px;
+    }
+
+    textarea.editor {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      resize: none;
+      border: none;
+      outline: none;
+      padding: 14px 16px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--text);
+      background: transparent;
+      overflow: auto;
+      word-wrap: break-word;
+      white-space: pre;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 14px;
+    }
+
+    .toolbar input[type="text"] {
+      flex: 1 1 160px;
+      min-width: 120px;
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--data-border);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--text);
+      outline: none;
+    }
+
+    .toolbar input[type="text"]::placeholder {
+      color: var(--text-muted);
+    }
+
+    button {
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: var(--accent-soft);
+      color: var(--accent);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(110, 181, 255, 0.28);
+      border-color: rgba(110, 181, 255, 0.45);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, rgba(110, 181, 255, 0.35), rgba(94, 228, 168, 0.2));
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .status-line {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 0 14px 10px;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .ai-badge {
+      font-size: 0.68rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--data-border);
+    }
+
+    .ai-badge.on { color: var(--success); border-color: rgba(94, 228, 168, 0.3); }
+
+    /* ── Gates tab ── */
+    .section-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--data-border);
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-family: var(--sans);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .gate-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .gate-chip {
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--data-border);
+      font-size: 0.72rem;
+      min-width: 5.5rem;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .gate-chip.pass { border-color: rgba(94, 228, 168, 0.4); color: var(--success); }
+    .gate-chip.fail { border-color: rgba(255, 107, 107, 0.4); color: var(--danger); }
+    .gate-chip.na, .gate-chip.skip { color: var(--na); }
+
+    .gate-chip small {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      margin-top: 2px;
+    }
+
+    .artifact-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .artifact-links a {
+      font-size: 0.75rem;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(110, 181, 255, 0.25);
+      background: rgba(110, 181, 255, 0.08);
+    }
+
+    .artifact-links a:hover {
+      background: rgba(110, 181, 255, 0.18);
+    }
+
+    .block-gap { margin-bottom: 18px; }
+
+    /* ── Log tab ── */
+    pre.log {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      color: var(--text);
+      margin: 0;
+    }
+
+    /* ── Delta tab ── */
+    .disclaimer {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 179, 71, 0.06);
+      border: 1px solid rgba(255, 179, 71, 0.2);
+      margin-bottom: 12px;
+    }
+
+    .delta-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .delta-controls label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .delta-controls input[type="number"] {
+      width: 5.5rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--data-border);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--text);
+    }
+
+    .delta-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* ── Waves tab ── */
+    .wave-wrap {
+      flex: 1;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .wave-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      padding-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .wave-canvas-box {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--data-border);
+      background: rgba(0, 0, 0, 0.4);
+      cursor: crosshair;
+    }
+
+    #wave-svg {
+      display: block;
+      min-width: 100%;
+      height: 100%;
+      min-height: 240px;
+    }
+
+    .wave-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+      font-size: 0.68rem;
+    }
+
+    .wave-legend span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .wave-legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="mesh-bg"></div>
+  <div class="app">
+    <header class="glass">
+      <div class="brand">
+        <h1>Vking</h1>
+        <p>Local Verilog Workbench · v0.1</p>
+      </div>
+      <div class="honesty-banner">
+        G0–G3 verify the testbench and DUT are alive and self-consistent.
+        Functional correctness requires G4 or your own review.
+        Green chips are not &ldquo;verified correct.&rdquo;
+      </div>
+      <div class="scan-pill" id="scan-pill">
+        <span class="scan-dot" id="scan-dot"></span>
+        <span id="scan-label">Checking toolchain…</span>
+        <span id="doctor-chips"></span>
+      </div>
+    </header>
+
+    <div class="workbench">
+      <!-- LEFT: editors -->
+      <section class="col-left">
+        <nav class="tabs glass" id="editor-tabs" role="tablist">
+          <button type="button" class="active" data-editor="dut">DUT</button>
+          <button type="button" data-editor="tb">TB</button>
+          <button type="button" data-editor="manifest">Manifest</button>
+        </nav>
+
+        <div class="panel-stack data-panel">
+          <div class="editor-pane active" id="pane-dut">
+            <textarea class="editor" id="editor-dut" spellcheck="false" placeholder="Paste DUT Verilog here…"></textarea>
+          </div>
+          <div class="editor-pane" id="pane-tb">
+            <textarea class="editor" id="editor-tb" spellcheck="false" placeholder="Testbench — use Sync TB or edit manually…"></textarea>
+          </div>
+          <div class="editor-pane" id="pane-manifest">
+            <textarea class="editor" id="editor-manifest" spellcheck="false" readonly placeholder="Run manifest JSON appears after simulation…"></textarea>
+          </div>
+
+          <div class="toolbar glass">
+            <button type="button" class="secondary" id="btn-demo">Load Demo</button>
+            <button type="button" id="btn-sync-tb">Sync TB</button>
+            <button type="button" id="btn-parse">Parse</button>
+            <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
+            <button type="button" id="btn-ai">AI Generate</button>
+            <button type="button" class="primary" id="btn-run">Run Sim</button>
+            <span class="ai-badge" id="ai-badge">AI: …</span>
+          </div>
+          <p class="status-line" id="left-status"></p>
+        </div>
+      </section>
+
+      <!-- RIGHT: results -->
+      <section class="col-right">
+        <nav class="tabs glass" id="result-tabs" role="tablist">
+          <button type="button" class="active" data-result="gates">Gates</button>
+          <button type="button" data-result="log">Log</button>
+          <button type="button" data-result="delta">Delta</button>
+          <button type="button" data-result="waves">Waves</button>
+        </nav>
+
+        <div class="panel-stack data-panel">
+          <!-- Gates -->
+          <div class="result-pane active" id="result-gates">
+            <div class="result-body">
+              <div class="block-gap">
+                <div class="section-label">Port table</div>
+                <table>
+                  <thead>
+                    <tr><th>Name</th><th>Dir</th><th>Width</th></tr>
+                  </thead>
+                  <tbody id="ports-body">
+                    <tr><td colspan="3" style="color:var(--text-muted)">Parse or run to populate</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="block-gap">
+                <div class="section-label">Gates (backend-labeled)</div>
+                <div class="gate-row" id="gate-row">
+                  <div class="gate-chip na">G0 <small>verilator</small>—</div>
+                  <div class="gate-chip na">G1 <small>iverilog</small>—</div>
+                  <div class="gate-chip na">G1.5 <small>iverilog</small>—</div>
+                  <div class="gate-chip na">G2 <small>iverilog</small>—</div>
+                </div>
+              </div>
+
+              <div class="block-gap">
+                <div class="section-label">Artifacts</div>
+                <div class="artifact-links" id="artifact-links">
+                  <span style="color:var(--text-muted);font-size:0.75rem">Run simulation to generate artifacts</span>
+                </div>
+                <button type="button" id="btn-gtkwave" disabled>Open waves in GTKWave</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Log -->
+          <div class="result-pane" id="result-log">
+            <div class="result-body">
+              <pre class="log" id="sim-log">(no run yet)</pre>
+            </div>
+          </div>
+
+          <!-- Delta -->
+          <div class="result-pane" id="result-delta">
+            <div class="result-body">
+              <div class="disclaimer">
+                Reconstructed delta is derived from VCD value changes, not the VPI scheduler.
+                Times and ordering are approximate — use GTKWave for authoritative wave inspection.
+              </div>
+              <div class="delta-controls">
+                <label>Time (ns):
+                  <input type="number" id="delta-time" value="100" min="0" step="1" />
+                </label>
+                <button type="button" id="btn-delta" disabled>Show delta</button>
+              </div>
+              <p class="delta-note" id="delta-note">No run yet</p>
+              <table>
+                <thead>
+                  <tr><th>Signal</th><th>Prev</th><th>Value</th><th>Δ idx</th></tr>
+                </thead>
+                <tbody id="delta-body">
+                  <tr><td colspan="4" style="color:var(--text-muted)">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Waves -->
+          <div class="result-pane" id="result-waves">
+            <div class="result-body wave-wrap">
+              <p class="wave-meta" id="wave-meta">Run simulation with VCD output, then open this tab.</p>
+              <div class="wave-canvas-box" id="wave-box">
+                <svg id="wave-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+              </div>
+              <div class="wave-legend" id="wave-legend"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const DEMO_COUNTER = `module counter #(
+  parameter WIDTH = 8
+) (
+  input  wire             clk,
+  input  wire             rst_n,
+  input  wire             en,
+  output reg  [WIDTH-1:0] count
+);
+
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+      count <= {WIDTH{1'b0}};
+    else if (en)
+      count <= count + 1'b1;
+  end
+
+endmodule`;
+
+    const WAVE_COLORS = ['#6eb5ff', '#5ee4a8', '#ffb347', '#ff6b6b', '#c792ea', '#f78c6c', '#82aaff', '#89ddff'];
+
+    const state = {
+      simReady: false,
+      wavesReady: false,
+      aiAvailable: false,
+      runId: null,
+      artifactUrls: {},
+      activeEditor: 'dut',
+      activeResult: 'gates',
+      waveData: null,
+      timescaleNs: 1,
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function gateClass(status) {
+      const s = (status || '').toUpperCase();
+      if (s === 'PASS') return 'pass';
+      if (s === 'FAIL' || s === 'VACUOUS') return 'fail';
+      if (s === 'SKIP') return 'skip';
+      return 'na';
+    }
+
+    function getEditor(id) {
+      return $('editor-' + id);
+    }
+
+    function activeEditorText() {
+      return getEditor(state.activeEditor).value;
+    }
+
+    function setActiveEditor(id) {
+      state.activeEditor = id;
+      document.querySelectorAll('#editor-tabs button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.editor === id);
+      });
+      document.querySelectorAll('.editor-pane').forEach((p) => {
+        p.classList.toggle('active', p.id === 'pane-' + id);
+      });
+      updateAiButton();
+    }
+
+    function setActiveResult(id) {
+      state.activeResult = id;
+      document.querySelectorAll('#result-tabs button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.result === id);
+      });
+      document.querySelectorAll('.result-pane').forEach((p) => {
+        p.classList.toggle('active', p.id === 'result-' + id);
+      });
+      if (id === 'waves' && state.runId) loadWaves();
+    }
+
+    function updateAiButton() {
+      const btn = $('btn-ai');
+      if (!state.aiAvailable) {
+        btn.disabled = true;
+        return;
+      }
+      btn.disabled = state.activeEditor === 'manifest';
+    }
+
+    function aiModeForTab() {
+      if (state.activeEditor === 'tb') return 'tb';
+      if (state.activeEditor === 'dut') {
+        return getEditor('dut').value.trim() ? 'improve' : 'generate';
+      }
+      return 'generate';
+    }
+
+    function renderDoctor(data) {
+      const chipsEl = $('doctor-chips');
+      const tools = data.tools || {};
+      chipsEl.innerHTML = '';
+      const toolNames = ['iverilog', 'vvp', 'gtkwave', 'verilator'];
+      let allOk = true;
+      for (const name of toolNames) {
+        const t = tools[name] || {};
+        const chip = document.createElement('span');
+        chip.className = 'doctor-chip ' + (t.available ? 'ok' : 'bad');
+        chip.textContent = name + ': ' + (t.available ? (t.version || 'ok') : 'missing');
+        chip.title = t.message || t.path || '';
+        chipsEl.appendChild(chip);
+        if (!t.available && name !== 'verilator') allOk = false;
+      }
+      state.simReady = !!data.sim_ready;
+      state.wavesReady = !!data.waves_ready;
+      $('btn-run').disabled = !state.simReady;
+
+      const dot = $('scan-dot');
+      const label = $('scan-label');
+      if (state.simReady) {
+        dot.className = 'scan-dot';
+        label.textContent = 'Sim ready';
+      } else {
+        dot.className = 'scan-dot warn';
+        label.textContent = 'Sim unavailable';
+        $('left-status').textContent =
+          data.install_hint || 'iverilog/vvp not found — install oss-cad-suite; parse still works.';
+      }
+      if (!allOk && !state.simReady) dot.className = 'scan-dot bad';
+    }
+
+    function renderAiStatus(data) {
+      state.aiAvailable = !!data.available;
+      const badge = $('ai-badge');
+      if (data.available && data.config) {
+        badge.textContent = 'AI: ' + data.config.provider + ' / ' + data.config.model;
+        badge.classList.add('on');
+      } else {
+        badge.textContent = 'AI: not configured';
+        badge.classList.remove('on');
+      }
+      updateAiButton();
+    }
+
+    function renderPorts(ports) {
+      const body = $('ports-body');
+      if (!ports || !ports.length) {
+        body.innerHTML = '<tr><td colspan="3" style="color:var(--text-muted)">No ports detected</td></tr>';
+        return;
+      }
+      body.innerHTML = ports.map((p) =>
+        `<tr><td>${esc(p.name)}</td><td>${esc(p.direction)}</td><td>${esc(p.width)}</td></tr>`
+      ).join('');
+    }
+
+    function renderGates(gateResults) {
+      const row = $('gate-row');
+      const order = [
+        ['G0', 'verilator'],
+        ['G1', 'iverilog'],
+        ['G1.5', 'iverilog'],
+        ['G2', 'iverilog'],
+      ];
+      row.innerHTML = order.map(([g, backend]) => {
+        const r = (gateResults && gateResults[g]) || { status: '—', message: '' };
+        const msg = r.message ? `<small>${esc(r.message)}</small>` : '';
+        return `<div class="gate-chip ${gateClass(r.status)}">${g} <small>${backend}</small>${esc(r.status)}${msg}</div>`;
+      }).join('');
+    }
+
+    function renderArtifacts(urls) {
+      const el = $('artifact-links');
+      const keys = ['dut', 'tb', 'makefile', 'waves', 'log', 'vvp', 'filelist'];
+      const links = keys.filter((k) => urls[k]).map((k) =>
+        `<a href="${esc(urls[k])}" download>${k}</a>`
+      );
+      el.innerHTML = links.length
+        ? links.join('')
+        : '<span style="color:var(--text-muted);font-size:0.75rem">No artifacts</span>';
+      $('btn-gtkwave').disabled = !(state.wavesReady && urls.waves);
+      $('btn-delta').disabled = !state.runId;
+    }
+
+    function esc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function parseTimescaleNs(ts) {
+      if (!ts) return 1;
+      const m = String(ts).trim().match(/^(\d+(?:\.\d+)?)\s*(s|ms|us|ns|ps|fs)$/i);
+      if (!m) return 1;
+      const n = parseFloat(m[1]);
+      const unit = m[2].toLowerCase();
+      const mult = { s: 1e9, ms: 1e6, us: 1e3, ns: 1, ps: 1e-3, fs: 1e-6 };
+      return n * (mult[unit] || 1);
+    }
+
+    function applyRunResult(data) {
+      state.runId = data.manifest.run_id;
+      state.artifactUrls = data.artifact_urls || {};
+      renderPorts(data.ports);
+      renderGates(data.manifest.gate_results);
+      $('sim-log').textContent = data.log || '(empty log)';
+      renderArtifacts(state.artifactUrls);
+      getEditor('manifest').value = JSON.stringify(data.manifest, null, 2);
+      if (data.tb && !getEditor('tb').value.trim()) {
+        getEditor('tb').value = data.tb;
+      }
+      $('left-status').textContent =
+        'Run ' + state.runId + ' — backend ' + data.manifest.backend +
+        (data.manifest.backend_version ? ' (' + data.manifest.backend_version + ')' : '');
+      $('delta-note').textContent =
+        'Run complete — delta uses VCD if present; FST-only shows limited data.';
+      state.waveData = null;
+      if (state.activeResult === 'waves') loadWaves();
+    }
+
+    async function fetchDoctor() {
+      try {
+        const r = await fetch('/api/doctor');
+        renderDoctor(await r.json());
+      } catch {
+        $('doctor-chips').innerHTML = '<span class="doctor-chip bad">doctor failed</span>';
+        $('scan-dot').className = 'scan-dot bad';
+      }
+    }
+
+    async function fetchAiStatus() {
+      try {
+        const r = await fetch('/api/ai/status');
+        renderAiStatus(await r.json());
+      } catch {
+        renderAiStatus({ available: false });
+      }
+    }
+
+    async function loadWaves() {
+      if (!state.runId) return;
+      const meta = $('wave-meta');
+      meta.textContent = 'Loading wave traces…';
+      try {
+        const r = await fetch('/api/waves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ run_id: state.runId }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          meta.textContent = data.detail || 'Wave load failed';
+          drawWaves(null);
+          return;
+        }
+        state.waveData = data;
+        state.timescaleNs = parseTimescaleNs(data.timescale);
+        meta.textContent =
+          `timescale ${data.timescale} · t_max ${data.t_max} · ${data.signals.length} signal(s)` +
+          (data.message ? ' — ' + data.message : '');
+        drawWaves(data);
+      } catch (e) {
+        meta.textContent = 'Wave fetch error: ' + e.message;
+        drawWaves(null);
+      }
+    }
+
+    function isBinaryVal(v) {
+      const s = String(v).toLowerCase();
+      return s === '0' || s === '1' || s === 'x' || s === 'z' || s === 'h' || s === 'l';
+    }
+
+    function drawWaves(data) {
+      const svg = $('wave-svg');
+      const legend = $('wave-legend');
+      svg.innerHTML = '';
+      legend.innerHTML = '';
+
+      if (!data || !data.signals || !data.signals.length) {
+        svg.setAttribute('viewBox', '0 0 400 120');
+        svg.innerHTML = '<text x="20" y="60" fill="rgba(255,255,255,0.4)" font-size="13" font-family="Outfit,sans-serif">No wave data</text>';
+        return;
+      }
+
+      const margin = { top: 16, right: 24, bottom: 28, left: 130 };
+      const box = $('wave-box');
+      const width = Math.max(box.clientWidth || 480, 480);
+      const trackH = 44;
+      const height = margin.top + margin.bottom + data.signals.length * trackH;
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const tMax = Math.max(data.t_max, 1);
+
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('width', width);
+      svg.setAttribute('height', height);
+      svg.dataset.marginLeft = margin.left;
+      svg.dataset.plotW = plotW;
+      svg.dataset.tMax = tMax;
+      svg.dataset.timescaleNs = state.timescaleNs;
+
+      const grid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      grid.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+      for (let i = 0; i <= 4; i++) {
+        const x = margin.left + (plotW * i) / 4;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', margin.top);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', margin.top + plotH);
+        grid.appendChild(line);
+      }
+      svg.appendChild(grid);
+
+      const xScale = (t) => margin.left + (t / tMax) * plotW;
+
+      data.signals.forEach((sig, idx) => {
+        const color = WAVE_COLORS[idx % WAVE_COLORS.length];
+        const y0 = margin.top + idx * trackH;
+        const yMid = y0 + trackH / 2;
+        const yHigh = y0 + 10;
+        const yLow = y0 + trackH - 10;
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 8);
+        label.setAttribute('y', yMid + 4);
+        label.setAttribute('fill', color);
+        label.setAttribute('font-size', '11');
+        label.setAttribute('font-family', 'ui-monospace,monospace');
+        const shortName = sig.name.split('.').pop();
+        label.textContent = shortName.length > 16 ? shortName.slice(0, 14) + '…' : shortName;
+        label.setAttribute('title', sig.name);
+        svg.appendChild(label);
+
+        const sep = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        sep.setAttribute('x1', margin.left);
+        sep.setAttribute('y1', y0 + trackH);
+        sep.setAttribute('x2', width - margin.right);
+        sep.setAttribute('y2', y0 + trackH);
+        sep.setAttribute('stroke', 'rgba(255,255,255,0.05)');
+        svg.appendChild(sep);
+
+        const values = sig.values || [];
+        if (!values.length) return;
+
+        const binary = values.every((v) => isBinaryVal(v.v));
+
+        if (binary) {
+          let d = '';
+          for (let j = 0; j < values.length; j++) {
+            const t = values[j].t;
+            const v = String(values[j].v).toLowerCase();
+            const nextT = j + 1 < values.length ? values[j + 1].t : tMax;
+            const y = (v === '1' || v === 'h') ? yHigh : yLow;
+            const x0 = xScale(t);
+            const x1 = xScale(nextT);
+            d += `M${x0},${y}H${x1}`;
+            if (j + 1 < values.length) {
+              const nv = String(values[j + 1].v).toLowerCase();
+              const ny = (nv === '1' || nv === 'h') ? yHigh : yLow;
+              d += `V${ny}`;
+            }
+          }
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', d);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', color);
+          path.setAttribute('stroke-width', '2');
+          svg.appendChild(path);
+        } else {
+          const laneTop = yHigh;
+          const laneBot = yLow;
+          let d = '';
+          for (let j = 0; j < values.length; j++) {
+            const t = values[j].t;
+            const nextT = j + 1 < values.length ? values[j + 1].t : tMax;
+            const frac = 0.5;
+            const y = laneBot - (laneBot - laneTop) * frac;
+            const x0 = xScale(t);
+            const x1 = xScale(nextT);
+            d += `M${x0},${y}H${x1}`;
+          }
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', d);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', color);
+          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke-dasharray', '4 3');
+          svg.appendChild(path);
+
+          const last = values[values.length - 1];
+          const vt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          vt.setAttribute('x', xScale(last.t) + 4);
+          vt.setAttribute('y', yMid + 3);
+          vt.setAttribute('fill', color);
+          vt.setAttribute('font-size', '10');
+          vt.setAttribute('font-family', 'ui-monospace,monospace');
+          vt.textContent = String(last.v);
+          svg.appendChild(vt);
+        }
+
+        const leg = document.createElement('span');
+        leg.innerHTML = `<i style="background:${color}"></i>${esc(shortName)}`;
+        legend.appendChild(leg);
+      });
+
+      const axis = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      axis.setAttribute('x', margin.left);
+      axis.setAttribute('y', height - 8);
+      axis.setAttribute('fill', 'rgba(255,255,255,0.35)');
+      axis.setAttribute('font-size', '10');
+      axis.textContent = '0';
+      svg.appendChild(axis);
+
+      const axisEnd = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      axisEnd.setAttribute('x', width - margin.right - 30);
+      axisEnd.setAttribute('y', height - 8);
+      axisEnd.setAttribute('fill', 'rgba(255,255,255,0.35)');
+      axisEnd.setAttribute('font-size', '10');
+      axisEnd.textContent = String(tMax);
+      svg.appendChild(axisEnd);
+    }
+
+    function waveClickToTime(clientX) {
+      const svg = $('wave-svg');
+      const rect = svg.getBoundingClientRect();
+      const marginLeft = parseFloat(svg.dataset.marginLeft) || 130;
+      const plotW = parseFloat(svg.dataset.plotW) || 300;
+      const tMax = parseFloat(svg.dataset.tMax) || 1;
+      const timescaleNs = parseFloat(svg.dataset.timescaleNs) || 1;
+      const relX = clientX - rect.left;
+      const viewW = svg.viewBox.baseVal.width || rect.width;
+      const x = (relX / rect.width) * viewW;
+      const t = Math.max(0, Math.min(tMax, ((x - marginLeft) / plotW) * tMax));
+      const ns = Math.round(t * timescaleNs);
+      $('delta-time').value = ns;
+      if (state.runId) fetchDelta(ns);
+    }
+
+    async function fetchDelta(timeNs) {
+      if (!state.runId) return;
+      const r = await fetch('/api/delta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: state.runId, time_ns: timeNs }),
+      });
+      const data = await r.json();
+      $('delta-note').textContent = data.message || (data.available ? 'ok' : 'unavailable');
+      const body = $('delta-body');
+      if (!data.rows || !data.rows.length) {
+        body.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted)">No delta rows at this time</td></tr>';
+        return;
+      }
+      body.innerHTML = data.rows.map((row) =>
+        `<tr><td>${esc(row.signal)}</td><td>${esc(row.prev)}</td><td>${esc(row.value)}</td><td>${esc(row.delta_idx)}</td></tr>`
+      ).join('');
+    }
+
+    /* ── Tab wiring ── */
+    document.querySelectorAll('#editor-tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => setActiveEditor(btn.dataset.editor));
+    });
+
+    document.querySelectorAll('#result-tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => setActiveResult(btn.dataset.result));
+    });
+
+    $('wave-box').addEventListener('click', (e) => {
+      if (state.waveData) waveClickToTime(e.clientX);
+    });
+
+    window.addEventListener('resize', () => {
+      if (state.waveData) drawWaves(state.waveData);
+    });
+
+    /* ── Toolbar actions ── */
+    $('btn-demo').addEventListener('click', async () => {
+      try {
+        const r = await fetch('/api/demo/counter');
+        const data = await r.json();
+        getEditor('dut').value = data.source || DEMO_COUNTER;
+      } catch {
+        getEditor('dut').value = DEMO_COUNTER;
+      }
+      setActiveEditor('dut');
+      $('left-status').textContent = 'Loaded counter demo';
+    });
+
+    $('btn-sync-tb').addEventListener('click', async () => {
+      const source = getEditor('dut').value;
+      if (!source.trim()) {
+        $('left-status').textContent = 'DUT source is empty';
+        return;
+      }
+      $('left-status').textContent = 'Syncing TB…';
+      const r = await fetch('/api/sync-tb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        $('left-status').textContent = data.detail || 'sync-tb failed';
+        return;
+      }
+      getEditor('tb').value = data.tb || '';
+      if (data.ports) renderPorts(data.ports);
+      setActiveEditor('tb');
+      $('left-status').textContent = 'TB synced for module ' + (data.module || '');
+    });
+
+    $('btn-parse').addEventListener('click', async () => {
+      const source = getEditor('dut').value;
+      $('left-status').textContent = 'Parsing…';
+      const r = await fetch('/api/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        $('left-status').textContent = data.detail || 'parse failed';
+        return;
+      }
+      renderPorts(data.ports);
+      $('left-status').textContent =
+        'Module: ' + data.module + (data.errors?.length ? ' — ' + data.errors.join('; ') : '');
+    });
+
+    $('btn-ai').addEventListener('click', async () => {
+      if (!state.aiAvailable || state.activeEditor === 'manifest') return;
+      const mode = aiModeForTab();
+      const prompt = $('ai-prompt').value.trim() || null;
+      const source = mode === 'tb' || mode === 'improve'
+        ? getEditor('dut').value
+        : (getEditor('dut').value.trim() || null);
+      $('left-status').textContent = 'AI generating (' + mode + ')…';
+      const r = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, prompt, mode }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        $('left-status').textContent = data.detail || 'AI generate failed';
+        return;
+      }
+      const target = mode === 'tb' ? 'tb' : 'dut';
+      getEditor(target).value = data.verilog || '';
+      setActiveEditor(target);
+      $('left-status').textContent =
+        'AI ' + data.mode + ' via ' + data.provider + ' / ' + data.model;
+    });
+
+    $('btn-run').addEventListener('click', async () => {
+      const source = getEditor('dut').value;
+      const tb = getEditor('tb').value.trim();
+      $('left-status').textContent = 'Running…';
+      $('sim-log').textContent = '(running)';
+      const body = { source };
+      if (tb) body.tb_source = getEditor('tb').value;
+      const r = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        $('left-status').textContent = data.detail || 'run failed';
+        $('sim-log').textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+      applyRunResult(data);
+      setActiveResult('gates');
+    });
+
+    $('btn-gtkwave').addEventListener('click', async () => {
+      if (!state.runId) return;
+      const r = await fetch('/api/gtkwave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: state.runId }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        alert(data.detail || 'GTKWave launch failed');
+        return;
+      }
+      $('left-status').textContent = 'Launched GTKWave: ' + data.wave_path;
+    });
+
+    $('btn-delta').addEventListener('click', async () => {
+      if (!state.runId) return;
+      const time_ns = parseFloat($('delta-time').value) || 0;
+      await fetchDelta(time_ns);
+      setActiveResult('delta');
+    });
+
+    fetchDoctor();
+    fetchAiStatus();
+  </script>
+</body>
+</html>

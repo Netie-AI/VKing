@@ -1,0 +1,22 @@
+{
+  "run_id": "run-0010",
+  "timestamp": "2026-07-08T13:40:00+08:00",
+  "target": "v0.1 prototype — glass-morphism workbench UI",
+  "plan_section": "section 9 (UI v0.1) + v0.7 UI direction (dense data panels + glass chrome)",
+  "interfaces_touched": [
+    "IUIRenderer (full workbench: editor tabs, result tabs, wave canvas, delta panel)"
+  ],
+  "files_changed": [
+    "prototype/templates/index.html"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "Glass chrome applied to header/nav/toolbar per demoui reference; data panels use dense dark fill per v0.7 Palantir register direction",
+    "Manifest editor tab shows run JSON read-only; AI Generate disabled on Manifest tab"
+  ],
+  "open_questions_for_claude": [
+    "Review glass vs dense-panel balance against v0.7 rule (glass strictly on nav/overlays)",
+    "Confirm wave canvas click-to-delta time conversion from VCD timescale is acceptable for prototype"
+  ]
+}

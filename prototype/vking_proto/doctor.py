@@ -25,8 +25,7 @@ def _oss_cad_candidates() -> list[Path]:
     if env_root:
         candidates.append(Path(env_root) / "bin")
     candidates.append(Path(r"C:\oss-cad-suite\bin"))
-    home = Path.home()
-    candidates.append(home / "oss-cad-suite" / "bin")
+    candidates.append(Path.home() / "oss-cad-suite" / "bin")
     return candidates
 
 
@@ -44,6 +43,20 @@ def find_oss_cad_bin() -> Path | None:
     return found
 
 
+def ensure_path_env() -> str | None:
+    """Prepend discovered oss-cad-suite ``bin`` to ``PATH`` for subprocesses."""
+    oss_bin = find_oss_cad_bin()
+    if not oss_bin:
+        return None
+    bin_str = str(oss_bin)
+    current = os.environ.get("PATH", "")
+    parts = current.split(os.pathsep) if current else []
+    if any(p.lower() == bin_str.lower() for p in parts):
+        return bin_str
+    os.environ["PATH"] = bin_str + os.pathsep + current if current else bin_str
+    return bin_str
+
+
 def tool_paths() -> dict[str, str | None]:
     """Return resolved executable paths for prototype toolchain tools."""
     ensure_path_env()
@@ -54,25 +67,6 @@ def tool_paths() -> dict[str, str | None]:
     oss_bin = find_oss_cad_bin()
     paths["oss_cad_suite_bin"] = str(oss_bin) if oss_bin else None
     return paths
-
-
-def ensure_path_env() -> str | None:
-    """Prepend discovered oss-cad-suite ``bin`` to ``PATH`` for subprocesses.
-
-    Returns the prepended directory, or ``None`` if none was found.
-    """
-    oss_bin = find_oss_cad_bin()
-    if not oss_bin:
-        return None
-    bin_str = str(oss_bin)
-    current = os.environ.get("PATH", "")
-    parts = current.split(os.pathsep) if current else []
-    if parts and parts[0].lower() == bin_str.lower():
-        return bin_str
-    if any(p.lower() == bin_str.lower() for p in parts):
-        return bin_str
-    os.environ["PATH"] = bin_str + os.pathsep + current if current else bin_str
-    return bin_str
 
 
 def _probe_version(exe: str) -> str | None:
