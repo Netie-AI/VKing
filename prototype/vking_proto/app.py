@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import ai_generate, delta, doctor, ingest, runner, tbgen, waves
+from . import ai_generate, delta, doctor, ingest, netlist, runner, tbgen, waves
 from .config import ai_config_public, get_ai_config
 from .ingest import parse_verilog_source
 from .manifest import ArtifactPaths, GateResult, GateStatus, RunManifest
@@ -54,6 +54,11 @@ class AiGenerateRequest(BaseModel):
 class WavesRequest(BaseModel):
     run_id: str
     signals: list[str] | None = None
+
+
+class NetlistRequest(BaseModel):
+    source: str
+    top_module: str | None = None
 
 
 class DeltaRequest(BaseModel):
@@ -228,6 +233,14 @@ def api_waves(req: WavesRequest) -> dict:
             detail="wave canvas requires VCD; this run has FST only",
         )
     return waves.build_wave_traces(vcd, signal_filter=req.signals)
+
+
+@app.post("/api/netlist")
+def api_netlist(req: NetlistRequest) -> dict:
+    try:
+        return netlist.build_netlist(req.source, req.top_module)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/parse")

@@ -1,0 +1,35 @@
+{
+  "run_id": "run-0011",
+  "timestamp": "2026-07-08T13:55:00+08:00",
+  "target": "v0.1 prototype — oss-cad-suite installed, real sim + waves/delta/netlist",
+  "plan_section": "section 9 (UI) + IEEE Columbus toolchain setup + Yosys netlist schematic",
+  "interfaces_touched": [
+    "ISimBackend (oss-cad bin+lib PATH fix)",
+    "IUIRenderer (responsive glass UI, schematic tab, beginner strip)",
+    "Yosys netlist API (/api/netlist)"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/doctor.py",
+    "prototype/vking_proto/netlist.py",
+    "prototype/vking_proto/ingest.py",
+    "prototype/vking_proto/tbgen.py",
+    "prototype/vking_proto/app.py",
+    "prototype/templates/index.html",
+    "prototype/README.md"
+  ],
+  "gate_results": {
+    "G1": "PASS",
+    "G2": "PASS",
+    "note": "realtest01 counter run on C:\\oss-cad-suite iverilog/vvp"
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "oss-cad-suite moved from Downloads to C:\\oss-cad-suite; user PATH includes bin+lib",
+    "Schematic via Yosys JSON + netlistsvg.com link (not embedded viewer yet)",
+    "Delta time input uses VCD #time units; wave click jumps to Delta tab"
+  ],
+  "open_questions_for_claude": [
+    "Review L2_sim_active claim from local realtest01 run",
+    "Confirm netlistsvg external link vs future embedded renderer"
+  ]
+}

@@ -17,16 +17,22 @@ Local one-page Verilog workbench: parse ports, generate a `clk_rst_smoke` testbe
 
 ### Install oss-cad-suite on Windows
 
-1. Download the Windows archive from [YosysHQ oss-cad-suite releases](https://github.com/YosysHQ/oss-cad-suite/releases).
-2. Extract to a stable path, e.g. `C:\oss-cad-suite`.
-3. Add the `bin` directory to your user `PATH`, e.g. `C:\oss-cad-suite\bin`.
-4. Open a new terminal and verify:
+Follow the [IEEE Columbus open-source IC tools guide](https://r2.ieee.org/columbus-ssccas/resources/open-source-ic-tools/) or:
+
+1. Download the Windows `.exe` from [YosysHQ oss-cad-suite-build releases](https://github.com/YosysHQ/oss-cad-suite-build/releases/latest).
+2. Run the installer — extract to **`C:\oss-cad-suite`** (no spaces in path).
+3. User PATH should include `C:\oss-cad-suite\bin` and `C:\oss-cad-suite\lib` (Vking doctor prepends both automatically; you can also run `start.bat` from that folder).
+4. Optional: set user env `OSS_CAD_SUITE=C:\oss-cad-suite`.
+5. Open a **new** terminal and verify:
 
    ```powershell
    iverilog -V
    vvp -V
+   yosys -V
    gtkwave -V
    ```
+
+Or run `prototype/scripts/install_oss_cad.ps1` to download automatically.
 
 If any command is missing, the UI still loads but **Run simulation** stays disabled until `iverilog` and `vvp` are found.
 

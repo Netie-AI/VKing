@@ -28,13 +28,15 @@ def _signal_leaf(name: str) -> str:
 
 def _default_signal_filter(name: str) -> bool:
     leaf = _signal_leaf(name)
-    if leaf in ("clk", "clock") or leaf.endswith("_clk") or leaf.endswith("clk"):
+    if leaf in ("clk", "clock", "en") or leaf.endswith("_clk") or leaf.endswith("clk"):
         return True
     if leaf.startswith("rst") or leaf.startswith("reset"):
         return True
     if leaf.startswith("count") or "count" in leaf:
         return True
-    if "out" in leaf:
+    if leaf.startswith("en") or leaf.endswith("_en"):
+        return True
+    if "out" in leaf or leaf.startswith("data"):
         return True
     return False
 
@@ -74,9 +76,16 @@ def build_wave_traces(
         }
 
     timescale = _read_timescale(path)
+    all_names = sorted({e["signal"] for e in parsed.events})
     selected_names = sorted(
         {e["signal"] for e in parsed.events if _matches_filter(e["signal"], signal_filter)}
     )
+    if signal_filter is None and len(selected_names) < 2:
+        for name in all_names:
+            if name not in selected_names:
+                selected_names.append(name)
+            if len(selected_names) >= 8:
+                break
 
     signals_out: list[dict[str, Any]] = []
     t_max = 0
@@ -106,4 +115,5 @@ def build_wave_traces(
         "timescale": timescale,
         "t_max": t_max,
         "signals": signals_out,
+        "real_vcd": True,
     }

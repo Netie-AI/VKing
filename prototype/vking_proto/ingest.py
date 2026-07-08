@@ -20,6 +20,7 @@ class ModuleView:
     ports: list[Port] = field(default_factory=list)
     timescale: str | None = None
     parameters: list[str] = field(default_factory=list)
+    param_defaults: dict[str, str] = field(default_factory=dict)
 
 
 _TIMESCALE_RE = re.compile(
@@ -51,6 +52,10 @@ _NONANSI_PORT_RE = re.compile(
 )
 
 _PARAM_NAME_RE = re.compile(r"\bparameter\s+(?:\w+\s*=\s*)?(\w+)", re.IGNORECASE)
+_PARAM_DEFAULT_RE = re.compile(
+    r"parameter\s+(?:\w+\s+)?(\w+)\s*=\s*([^,;)]+)",
+    re.IGNORECASE,
+)
 
 
 def _strip_comments(source: str) -> str:
@@ -71,10 +76,17 @@ def _strip_comments(source: str) -> str:
     return "".join(result)
 
 
-def _parse_parameters(param_blob: str | None) -> list[str]:
+def _parse_parameters(param_blob: str | None) -> tuple[list[str], dict[str, str]]:
     if not param_blob or not param_blob.strip():
-        return []
-    return [m.group(1) for m in _PARAM_NAME_RE.finditer(param_blob)]
+        return [], {}
+    names: list[str] = []
+    defaults: dict[str, str] = {}
+    for m in _PARAM_DEFAULT_RE.finditer(param_blob):
+        names.append(m.group(1))
+        defaults[m.group(1)] = m.group(2).strip()
+    if not names:
+        names = [m.group(1) for m in _PARAM_NAME_RE.finditer(param_blob)]
+    return names, defaults
 
 
 def _parse_ansi_ports(port_blob: str) -> list[Port]:
@@ -124,7 +136,7 @@ def parse_verilog_source(source: str) -> ModuleView:
         raise ValueError("No module declaration found in Verilog source")
 
     name = header.group(1)
-    parameters = _parse_parameters(header.group("params"))
+    parameters, param_defaults = _parse_parameters(header.group("params"))
     ansi_blob = header.group("ansi_ports")
 
     if ansi_blob and _PORT_TOKEN_RE.search(ansi_blob):
@@ -140,6 +152,7 @@ def parse_verilog_source(source: str) -> ModuleView:
         ports=ports,
         timescale=timescale,
         parameters=parameters,
+        param_defaults=param_defaults,
     )
 
 

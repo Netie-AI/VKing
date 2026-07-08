@@ -96,15 +96,29 @@ def generate_clk_rst_smoke(view: ModuleView, config: TbGenConfig | None = None) 
     for out in outputs:
         if _is_clk(out) or _is_rst(out):
             continue
-        x_checks.append(
-            f"        if ({out.name} === 1'bx || {out.name} === 1'bz) begin\n"
-            f"          $display(\"VKING_RESULT: FAIL X on {out.name} at cycle %0d\", cycle_count);\n"
-            f"          $finish;\n"
-            f"        end"
-        )
+        if out.width_expr:
+            x_checks.append(
+                f"        if ((^({out.name})) === 1'bx || (^({out.name})) === 1'bz) begin\n"
+                f"          $display(\"VKING_RESULT: FAIL X on {out.name} at cycle %0d\", cycle_count);\n"
+                f"          $finish;\n"
+                f"        end"
+            )
+        else:
+            x_checks.append(
+                f"        if ({out.name} === 1'bx || {out.name} === 1'bz) begin\n"
+                f"          $display(\"VKING_RESULT: FAIL X on {out.name} at cycle %0d\", cycle_count);\n"
+                f"          $finish;\n"
+                f"        end"
+            )
 
     decls = [_port_decl(p, for_tb_drive=True) for p in view.ports]
     inst_conns = ",\n    ".join(_instance_conn(p) for p in view.ports)
+
+    param_lines: list[str] = []
+    for pname, pdefault in view.param_defaults.items():
+        param_lines.append(f"  localparam {pname} = {pdefault};")
+    if param_lines:
+        param_lines.append("")
 
     lines = [
         f"`timescale {cfg.timescale}",
@@ -116,6 +130,7 @@ def generate_clk_rst_smoke(view: ModuleView, config: TbGenConfig | None = None) 
         f"  localparam integer WATCHDOG_CYCLES = {cfg.watchdog_cycles};",
         f"  localparam integer VACUITY_MIN = {cfg.vacuity_min};",
         "",
+        *param_lines,
         *decls,
         "",
         "  integer cycle_count;",

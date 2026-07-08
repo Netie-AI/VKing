@@ -199,11 +199,27 @@
       gap: 10px;
     }
 
+    @media (max-width: 1200px) {
+      .col-left { flex: 0 0 52%; }
+      .col-right { flex: 0 0 calc(48% - 12px); }
+    }
+
     @media (max-width: 960px) {
       .workbench { flex-direction: column; overflow: auto; }
-      html, body { overflow: auto; }
-      .app { height: auto; min-height: 100vh; }
-      .col-left, .col-right { flex: 1 1 auto; }
+      html, body { overflow: auto; height: auto; min-height: 100%; }
+      .app { height: auto; min-height: 100vh; min-height: 100dvh; }
+      .col-left, .col-right { flex: 1 1 auto; min-height: 320px; }
+      header { flex-direction: column; align-items: stretch; }
+      .honesty-banner { flex: 1 1 auto; }
+      .scan-pill { width: 100%; }
+    }
+
+    @media (max-width: 640px) {
+      .app { padding: 10px; gap: 8px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar input[type="text"] { width: 100%; flex: 1 1 100%; }
+      .toolbar button { width: 100%; text-align: center; }
+      nav.tabs { width: 100%; justify-content: flex-start; }
     }
 
     /* ── Tab bars ── */
@@ -573,7 +589,36 @@
       gap: 5px;
     }
 
-    .wave-legend i {
+    .beginner-strip {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-top: 1px solid var(--data-border);
+      line-height: 1.5;
+    }
+
+    .beginner-strip strong { color: var(--accent); font-weight: 500; }
+
+    .schematic-box {
+      min-height: 200px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px dashed var(--data-border);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      overflow: auto;
+    }
+
+    .schematic-box pre {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      max-height: 180px;
+      overflow: auto;
+      margin-top: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
       width: 10px;
       height: 10px;
       border-radius: 2px;
@@ -622,14 +667,16 @@
           </div>
 
           <div class="toolbar glass">
-            <button type="button" class="secondary" id="btn-demo">Load Demo</button>
-            <button type="button" id="btn-sync-tb">Sync TB</button>
+            <button type="button" class="secondary" id="btn-demo" title="Load 8-bit counter example">① Demo</button>
+            <button type="button" id="btn-sync-tb" title="Auto-generate testbench from DUT">② Sync TB</button>
+            <button type="button" id="btn-netlist" title="Yosys block diagram (netlistsvg)">Schematic</button>
             <button type="button" id="btn-parse">Parse</button>
             <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
             <button type="button" id="btn-ai">AI Generate</button>
-            <button type="button" class="primary" id="btn-run">Run Sim</button>
+            <button type="button" class="primary" id="btn-run" title="Compile + simulate with Icarus">③ Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
+          <p class="beginner-strip"><strong>Quick start:</strong> ① Demo → ② Sync TB → ③ Run Sim → open <em>Waves</em> tab (click waveform to inspect delta). Install tools: <code>C:\oss-cad-suite</code> via <a href="https://r2.ieee.org/columbus-ssccas/resources/open-source-ic-tools/" target="_blank" rel="noopener" style="color:var(--accent)">IEEE guide</a>.</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -641,6 +688,7 @@
           <button type="button" data-result="log">Log</button>
           <button type="button" data-result="delta">Delta</button>
           <button type="button" data-result="waves">Waves</button>
+          <button type="button" data-result="schematic">Schematic</button>
         </nav>
 
         <div class="panel-stack data-panel">
@@ -694,7 +742,7 @@
                 Times and ordering are approximate — use GTKWave for authoritative wave inspection.
               </div>
               <div class="delta-controls">
-                <label>Time (ns):
+                <label title="VCD timestamp (#time); click the Waves chart to pick a time">Sim time:
                   <input type="number" id="delta-time" value="100" min="0" step="1" />
                 </label>
                 <button type="button" id="btn-delta" disabled>Show delta</button>
@@ -714,11 +762,29 @@
           <!-- Waves -->
           <div class="result-pane" id="result-waves">
             <div class="result-body wave-wrap">
-              <p class="wave-meta" id="wave-meta">Run simulation with VCD output, then open this tab.</p>
+              <p class="wave-meta" id="wave-meta">Run simulation, then open this tab. Click a trace to jump to Delta.</p>
               <div class="wave-canvas-box" id="wave-box">
                 <svg id="wave-svg" xmlns="http://www.w3.org/2000/svg"></svg>
               </div>
               <div class="wave-legend" id="wave-legend"></div>
+            </div>
+          </div>
+
+          <!-- Schematic (Yosys + netlistsvg) -->
+          <div class="result-pane" id="result-schematic">
+            <div class="result-body">
+              <div class="disclaimer">
+                Block diagram from Yosys elaboration. Paste JSON into
+                <a href="https://netlistsvg.com/app" target="_blank" rel="noopener" style="color:var(--accent)">netlistsvg</a>
+                for full schematic (see IEEE Columbus guide).
+              </div>
+              <div class="schematic-box" id="schematic-box">
+                Click <strong>Schematic</strong> in the toolbar (or switch here after Run) to build netlist JSON from your DUT.
+              </div>
+              <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+                <button type="button" id="btn-copy-netlist" disabled>Copy JSON</button>
+                <button type="button" id="btn-open-netlistsvg" disabled>Open netlistsvg</button>
+              </div>
             </div>
           </div>
         </div>
@@ -757,6 +823,7 @@ endmodule`;
       activeResult: 'gates',
       waveData: null,
       timescaleNs: 1,
+      netlistJson: null,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -803,6 +870,9 @@ endmodule`;
           loadWaves();
         }
       }
+      if (id === 'schematic' && !state.netlistJson) {
+        buildNetlist(false);
+      }
     }
 
     function updateAiButton() {
@@ -826,7 +896,7 @@ endmodule`;
       const chipsEl = $('doctor-chips');
       const tools = data.tools || {};
       chipsEl.innerHTML = '';
-      const toolNames = ['iverilog', 'vvp', 'gtkwave', 'verilator'];
+      const toolNames = ['iverilog', 'vvp', 'gtkwave', 'yosys', 'verilator'];
       let allOk = true;
       for (const name of toolNames) {
         const t = tools[name] || {};
@@ -940,9 +1010,22 @@ endmodule`;
         'Run ' + state.runId + ' — backend ' + data.manifest.backend +
         (data.manifest.backend_version ? ' (' + data.manifest.backend_version + ')' : '');
       $('delta-note').textContent =
-        'Run complete — delta uses VCD if present; FST-only shows limited data.';
+        data.demo_waves
+          ? 'Demo VCD (toolchain missing) — install oss-cad-suite for real waves.'
+          : 'Run complete — click Waves tab; click a trace to inspect delta at that time.';
       state.waveData = null;
-      if (state.activeResult === 'waves') loadWaves();
+      if (data.manifest.gate_results?.G2?.status === 'PASS' && !data.demo_waves) {
+        setActiveResult('waves');
+        loadWaves().then(() => {
+          if (state.waveData?.t_max) {
+            const pick = Math.max(1, Math.floor(state.waveData.t_max / 3));
+            $('delta-time').value = pick;
+            fetchDelta(pick);
+          }
+        });
+      } else if (state.activeResult === 'waves') {
+        loadWaves();
+      }
     }
 
     async function fetchDoctor() {
@@ -990,6 +1073,18 @@ endmodule`;
         meta.textContent = 'Wave fetch error: ' + e.message;
         drawWaves(null);
       }
+    }
+
+    function formatBusValue(v) {
+      const s = String(v).toLowerCase();
+      if (/^[01xz]+$/.test(s) && s.length > 1) {
+        if (/^[01]+$/.test(s)) {
+          const n = parseInt(s, 2);
+          return '0x' + n.toString(16).toUpperCase();
+        }
+        return s;
+      }
+      return s;
     }
 
     function isBinaryVal(v) {
@@ -1070,7 +1165,7 @@ endmodule`;
         const values = sig.values || [];
         if (!values.length) return;
 
-        const binary = values.every((v) => isBinaryVal(v.v));
+        const binary = values.every((v) => isBinaryVal(v.v) && String(v.v).length <= 1);
 
         if (binary) {
           let d = '';
@@ -1122,7 +1217,7 @@ endmodule`;
           vt.setAttribute('fill', color);
           vt.setAttribute('font-size', '10');
           vt.setAttribute('font-family', 'ui-monospace,monospace');
-          vt.textContent = String(last.v);
+          vt.textContent = formatBusValue(last.v);
           svg.appendChild(vt);
         }
 
@@ -1154,14 +1249,14 @@ endmodule`;
       const marginLeft = parseFloat(svg.dataset.marginLeft) || 130;
       const plotW = parseFloat(svg.dataset.plotW) || 300;
       const tMax = parseFloat(svg.dataset.tMax) || 1;
-      const timescaleNs = parseFloat(svg.dataset.timescaleNs) || 1;
       const relX = clientX - rect.left;
       const viewW = svg.viewBox.baseVal.width || rect.width;
       const x = (relX / rect.width) * viewW;
       const t = Math.max(0, Math.min(tMax, ((x - marginLeft) / plotW) * tMax));
-      const ns = Math.round(t * timescaleNs);
-      $('delta-time').value = ns;
-      if (state.runId) fetchDelta(ns);
+      const vcdTime = Math.round(t);
+      $('delta-time').value = vcdTime;
+      setActiveResult('delta');
+      if (state.runId) fetchDelta(vcdTime);
     }
 
     async function fetchDelta(timeNs) {
@@ -1188,6 +1283,41 @@ endmodule`;
         ).join('');
       } catch (e) {
         $('delta-note').textContent = 'Delta fetch error: ' + e.message;
+      }
+    }
+
+    async function buildNetlist(showTab) {
+      const source = getEditor('dut').value;
+      if (!source.trim()) {
+        $('schematic-box').textContent = 'DUT is empty — paste Verilog or load Demo first.';
+        return;
+      }
+      $('schematic-box').textContent = 'Running Yosys elaboration…';
+      try {
+        const r = await fetch('/api/netlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          $('schematic-box').textContent = data.detail || 'Netlist failed';
+          return;
+        }
+        if (!data.ok) {
+          $('schematic-box').textContent = data.message || 'Yosys netlist failed';
+          return;
+        }
+        state.netlistJson = data.netlist;
+        $('schematic-box').innerHTML =
+          `<strong>Top:</strong> ${esc(data.top)} · <strong>modules:</strong> ${data.module_count}<br>` +
+          esc(data.hint || '') +
+          `<pre id="netlist-preview">${esc(JSON.stringify(data.netlist, null, 2).slice(0, 4000))}${JSON.stringify(data.netlist).length > 4000 ? '\n… (truncated preview)' : ''}</pre>`;
+        $('btn-copy-netlist').disabled = false;
+        $('btn-open-netlistsvg').disabled = false;
+        if (showTab !== false) setActiveResult('schematic');
+      } catch (e) {
+        $('schematic-box').textContent = 'Netlist error: ' + e.message;
       }
     }
 
@@ -1308,7 +1438,22 @@ endmodule`;
         return;
       }
       applyRunResult(data);
-      setActiveResult('gates');
+    });
+
+    $('btn-netlist').addEventListener('click', () => buildNetlist(true));
+
+    $('btn-copy-netlist').addEventListener('click', async () => {
+      if (!state.netlistJson) return;
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(state.netlistJson, null, 2));
+        $('left-status').textContent = 'Netlist JSON copied — paste into netlistsvg.com/app';
+      } catch {
+        $('left-status').textContent = 'Copy failed — select JSON in Schematic tab manually';
+      }
+    });
+
+    $('btn-open-netlistsvg').addEventListener('click', () => {
+      window.open('https://netlistsvg.com/app', '_blank', 'noopener');
     });
 
     $('btn-gtkwave').addEventListener('click', async () => {

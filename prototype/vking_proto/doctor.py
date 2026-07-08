@@ -8,13 +8,13 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-OSS_CAD_SUITE_URL = "https://github.com/YosysHQ/oss-cad-suite/releases"
+OSS_CAD_SUITE_BUILD_URL = "https://github.com/YosysHQ/oss-cad-suite-build/releases/latest"
 OSS_CAD_SUITE_HINT = (
-    f"Install YosysHQ oss-cad-suite (includes iverilog, vvp, verilator, gtkwave): "
-    f"{OSS_CAD_SUITE_URL}"
+    f"Install YosysHQ oss-cad-suite (iverilog, vvp, yosys, gtkwave): {OSS_CAD_SUITE_BUILD_URL}. "
+    "Extract to C:\\oss-cad-suite (no spaces in path). See prototype/README.md."
 )
 
-_TOOLS = ("iverilog", "vvp", "verilator", "gtkwave")
+_TOOLS = ("iverilog", "vvp", "verilator", "gtkwave", "yosys")
 
 _oss_bin_cached: Path | None | bool = False
 
@@ -43,17 +43,31 @@ def find_oss_cad_bin() -> Path | None:
     return found
 
 
-def ensure_path_env() -> str | None:
-    """Prepend discovered oss-cad-suite ``bin`` to ``PATH`` for subprocesses."""
-    oss_bin = find_oss_cad_bin()
-    if not oss_bin:
+def find_oss_cad_root() -> Path | None:
+    """Return oss-cad-suite root (contains bin/ and lib/)."""
+    bin_dir = find_oss_cad_bin()
+    if bin_dir is None:
         return None
-    bin_str = str(oss_bin)
+    return bin_dir.parent
+
+
+def ensure_path_env() -> str | None:
+    """Prepend oss-cad-suite ``bin`` and ``lib`` to PATH (matches environment.bat)."""
+    root = find_oss_cad_root()
+    if not root:
+        return None
+    bin_str = str(root / "bin")
+    lib_str = str(root / "lib")
+    os.environ.setdefault("YOSYSHQ_ROOT", str(root) + os.sep)
+    prepend = [bin_str, lib_str]
     current = os.environ.get("PATH", "")
     parts = current.split(os.pathsep) if current else []
-    if any(p.lower() == bin_str.lower() for p in parts):
-        return bin_str
-    os.environ["PATH"] = bin_str + os.pathsep + current if current else bin_str
+    new_parts: list[str] = []
+    for p in prepend:
+        if not any(existing.lower() == p.lower() for existing in parts):
+            new_parts.append(p)
+    if new_parts:
+        os.environ["PATH"] = os.pathsep.join(new_parts + parts)
     return bin_str
 
 
@@ -111,10 +125,12 @@ def doctor_report() -> dict[str, Any]:
     missing = [name for name, info in tools.items() if not info["available"]]
     sim_ready = tools["iverilog"]["available"] and tools["vvp"]["available"]
     oss_bin = find_oss_cad_bin()
+    oss_root = find_oss_cad_root()
     return {
         "tools": tools,
         "tool_paths": tool_paths(),
         "oss_cad_suite_bin": str(oss_bin) if oss_bin else None,
+        "oss_cad_suite_root": str(oss_root) if oss_root else None,
         "sim_ready": sim_ready,
         "lint_ready": tools["verilator"]["available"],
         "waves_ready": tools["gtkwave"]["available"],
