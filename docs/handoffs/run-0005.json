@@ -1,0 +1,24 @@
+{
+  "run_id": "run-0005",
+  "timestamp": "2026-07-08T12:52:00+08:00",
+  "target": "Claude reviews applied; merge-run 0002/0003/0004 complete; main live on Netie-AI/VKing",
+  "plan_section": "§11 (dogfooding / orchestration)",
+  "interfaces_touched": [],
+  "files_changed": [
+    "docs/handoffs/run-0002-review.json",
+    "docs/handoffs/run-0003-review.json",
+    "docs/handoffs/run-0004-review.json",
+    "tools/git_sync.py"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "run-0002 had no git branch — review recorded, merge skipped (work in run-0003 ancestry)",
+    "git_sync.py orphan-main bug caused brief working-tree wipe — recovered from run-0004; fixed to use branch promotion",
+    "run-0003 promoted directly to main (first merge); run-0004 merged on top"
+  ],
+  "open_questions_for_claude": [
+    "Source-level review of tools/git_sync.py merge gate (flagged in run-0003-review notes)",
+    "Confirm main on Netie-AI/VKing matches expected layout post-merge"
+  ]
+}

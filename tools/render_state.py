@@ -24,11 +24,11 @@ REQUIRED_HANDOFF_FIELDS = ("run_id", "timestamp", "target", "self_provenance")
 
 
 def _find_latest_handoff() -> Path:
-    runs = sorted(
-        HANDOFFS_DIR.glob("run-*.json"),
-        key=lambda p: int(re.search(r"run-(\d+)\.json$", p.name).group(1)),  # type: ignore[union-attr]
-    )
-    runs = [p for p in runs if not p.name.endswith("-review.json")]
+    runs = [
+        p for p in HANDOFFS_DIR.glob("run-*.json")
+        if re.fullmatch(r"run-\d+\.json", p.name)
+    ]
+    runs = sorted(runs, key=lambda p: int(re.search(r"run-(\d+)\.json$", p.name).group(1)))  # type: ignore[union-attr]
     if not runs:
         print("error: no docs/handoffs/run-*.json found", file=sys.stderr)
         sys.exit(1)
