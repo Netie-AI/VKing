@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .doctor import ensure_path_env, resolve_tool_exe
-from .ingest import ModuleView, parse_verilog_source
+from .ingest import ModuleView, parse_tb_top_module, parse_verilog_source
 from .manifest import ArtifactPaths, GateResult, GateStatus, RunManifest
 from .tbgen import TbGenConfig, generate_clk_rst_smoke
 
@@ -141,7 +141,7 @@ def run_simulation(
     module_view = view or parse_verilog_source(dut_source)
     cfg = tb_config or TbGenConfig()
     tb_text = tb_source or generate_clk_rst_smoke(module_view, cfg)
-    tb_top = cfg.tb_top
+    tb_top = parse_tb_top_module(tb_text) or cfg.tb_top
 
     ensure_path_env()
     iverilog = shutil.which("iverilog")
@@ -260,8 +260,8 @@ def run_simulation(
             g2_status = GateStatus.FAIL
             g2_msg = f"vvp exited {sim.returncode}"
         else:
-            g2_status = GateStatus.FAIL
-            g2_msg = "no VKING_RESULT marker in sim log"
+            g2_status = GateStatus.PASS
+            g2_msg = "sim finished (custom TB — no VKING_RESULT marker)"
 
         manifest.gate_results["G2"] = GateResult(
             gate="G2",

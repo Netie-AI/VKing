@@ -754,7 +754,8 @@
           <div class="toolbar glass">
             <select class="sample-select" id="sample-select" title="Pick a sample DUT"></select>
             <button type="button" class="secondary" id="btn-demo" title="Load selected sample">① Load</button>
-            <button type="button" id="btn-sync-tb" title="Auto-generate testbench from DUT">② Sync TB</button>
+            <button type="button" id="btn-sync-tb" title="Optional: auto-generate a template TB (replaces TB tab — skip if you wrote your own)">Generate auto TB</button>
+            <button type="button" id="btn-add-waves" title="Append $dumpfile/$dumpvars to your TB for Waves/GTKWave">Insert wave dump</button>
             <button type="button" id="btn-netlist" title="Yosys block diagram (netlistsvg)">Schematic</button>
             <button type="button" id="btn-parse">Parse</button>
             <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
@@ -762,7 +763,7 @@
             <button type="button" class="primary" id="btn-run" title="Compile + simulate with Icarus">③ Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
-          <p class="beginner-strip"><strong>How to use:</strong> ① Load sample → ② Sync TB → ③ Run Sim. <em>Waves</em> = in-browser preview (includes DUT signals like <code>q</code>). <strong>Click</strong> the wave chart → jumps to <em>Delta</em> at nearest event. <em>GTKWave</em> opens the same VCD with signals pre-loaded — no re-run needed. AMBA/complex buses: not in v0.1 yet.</p>
+          <p class="beginner-strip"><strong>Two editors:</strong> <em>DUT</em> = your design module only · <em>TB</em> = your testbench (paste yours here). <strong>Run Sim</strong> uses whatever is in the TB tab — it does <em>not</em> replace your TB. <em>Generate auto TB</em> is optional (template smoke test). For waves, click <em>Insert wave dump</em> if your TB has no <code>$dumpfile</code>.</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -1103,12 +1104,14 @@ endmodule`;
       $('sim-log').textContent = data.log || '(empty log)';
       renderArtifacts(state.artifactUrls);
       getEditor('manifest').value = JSON.stringify(data.manifest, null, 2);
-      if (data.tb && !getEditor('tb').value.trim()) {
-        getEditor('tb').value = data.tb;
+      if (data.tb_warnings && data.tb_warnings.length) {
+        $('left-status').textContent =
+          'Run ' + state.runId + ' — ' + data.tb_warnings.join(' ');
+      } else {
+        $('left-status').textContent =
+          'Run ' + state.runId + ' — top ' + (data.tb_top || 'tb') +
+          (data.manifest.backend_version ? ' · ' + data.manifest.backend : '');
       }
-      $('left-status').textContent =
-        'Run ' + state.runId + ' — backend ' + data.manifest.backend +
-        (data.manifest.backend_version ? ' (' + data.manifest.backend_version + ')' : '');
       $('delta-note').textContent =
         data.demo_waves
           ? 'Demo VCD (toolchain missing) — install oss-cad-suite for real waves.'
@@ -1521,12 +1524,14 @@ endmodule`;
         const r = await fetch('/api/samples/' + encodeURIComponent(id));
         const data = await r.json();
         getEditor('dut').value = data.source || '';
-        $('left-status').textContent = 'Loaded sample: ' + (data.name || id);
+        getEditor('tb').value = data.tb_source || '';
+        $('left-status').textContent = 'Loaded sample: ' + (data.name || id) +
+          (data.tb_source ? ' (+ TB)' : ' — paste your TB or Generate auto TB');
       } catch {
         getEditor('dut').value = DEMO_COUNTER;
+        getEditor('tb').value = '';
         $('left-status').textContent = 'Loaded fallback counter';
       }
-      getEditor('tb').value = '';
       setActiveEditor('dut');
     }
 
@@ -1538,7 +1543,13 @@ endmodule`;
         $('left-status').textContent = 'DUT source is empty';
         return;
       }
-      $('left-status').textContent = 'Syncing TB…';
+      if (getEditor('tb').value.trim()) {
+        if (!confirm('Replace YOUR testbench in the TB tab with an auto-generated template?')) {
+          $('left-status').textContent = 'Kept your TB — Run Sim uses TB tab as-is';
+          return;
+        }
+      }
+      $('left-status').textContent = 'Generating auto TB…';
       const r = await fetch('/api/sync-tb', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1552,7 +1563,29 @@ endmodule`;
       getEditor('tb').value = data.tb || '';
       if (data.ports) renderPorts(data.ports);
       setActiveEditor('tb');
-      $('left-status').textContent = 'TB synced for module ' + (data.module || '');
+      $('left-status').textContent = 'Auto TB generated for ' + (data.module || '') + ' — edit TB tab or Run Sim';
+    });
+
+    $('btn-add-waves').addEventListener('click', async () => {
+      const tb = getEditor('tb').value;
+      if (!tb.trim()) {
+        $('left-status').textContent = 'TB tab is empty — paste your testbench first';
+        setActiveEditor('tb');
+        return;
+      }
+      const r = await fetch('/api/tb/add-waves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: tb }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        $('left-status').textContent = data.detail || 'add-waves failed';
+        return;
+      }
+      if (data.changed) getEditor('tb').value = data.tb;
+      setActiveEditor('tb');
+      $('left-status').textContent = data.message || 'Wave dump updated';
     });
 
     $('btn-parse').addEventListener('click', async () => {
@@ -1601,10 +1634,22 @@ endmodule`;
     $('btn-run').addEventListener('click', async () => {
       const source = getEditor('dut').value;
       const tb = getEditor('tb').value.trim();
+      if (!source.trim()) {
+        $('left-status').textContent = 'DUT tab is empty';
+        return;
+      }
       $('left-status').textContent = 'Running…';
       $('sim-log').textContent = '(running)';
       const body = { source };
-      if (tb) body.tb_source = getEditor('tb').value;
+      if (tb) {
+        body.tb_source = getEditor('tb').value;
+      } else if (confirm('TB tab is empty. Generate auto TB and run? (Cancel to paste your own TB first)')) {
+        body.auto_tb = true;
+      } else {
+        $('left-status').textContent = 'Cancelled — paste your testbench in TB tab, then Run Sim';
+        setActiveEditor('tb');
+        return;
+      }
       const r = await fetch('/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

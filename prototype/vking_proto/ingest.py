@@ -57,6 +57,8 @@ _PARAM_DEFAULT_RE = re.compile(
     re.IGNORECASE,
 )
 
+_MODULE_NAME_RE = re.compile(r"\bmodule\s+(\w+)\b", re.IGNORECASE)
+
 
 def _strip_comments(source: str) -> str:
     result: list[str] = []
@@ -153,6 +155,62 @@ def parse_verilog_source(source: str) -> ModuleView:
         timescale=timescale,
         parameters=parameters,
         param_defaults=param_defaults,
+    )
+
+
+def list_module_names(source: str) -> list[str]:
+    """Return module names in source order."""
+    cleaned = _strip_comments(source)
+    return _MODULE_NAME_RE.findall(cleaned)
+
+
+def parse_tb_top_module(tb_source: str) -> str | None:
+    """Guess testbench top module name from TB source."""
+    names = list_module_names(tb_source)
+    if not names:
+        return None
+    for name in reversed(names):
+        lower = name.lower()
+        if lower.endswith("_tb") or lower.endswith("_test") or lower.startswith("tb_"):
+            return name
+    return names[-1]
+
+
+def analyze_tb_source(tb_source: str) -> dict[str, Any]:
+    """Static checks on user/testbench Verilog before sim."""
+    text = tb_source or ""
+    top = parse_tb_top_module(text)
+    has_dump = "$dumpfile" in text
+    has_dumpvars = "$dumpvars" in text
+    has_vking = "VKING_RESULT" in text
+    warnings: list[str] = []
+    if not has_dump or not has_dumpvars:
+        warnings.append(
+            "No $dumpfile/$dumpvars — Waves/Delta/GTKWave will be empty. "
+            "Use “Insert wave dump” or add dumps targeting your TB module."
+        )
+    if not has_vking:
+        warnings.append(
+            "No VKING_RESULT marker — Summary “Result” stays blank; sim can still pass."
+        )
+    if top is None:
+        warnings.append("Could not detect testbench module name — compile may fail.")
+    return {
+        "tb_top": top,
+        "has_dumpfile": has_dump,
+        "has_dumpvars": has_dumpvars,
+        "has_vking_result": has_vking,
+        "warnings": warnings,
+    }
+
+
+def wave_dump_snippet(tb_top: str, wave_file: str = "waves.vcd") -> str:
+    """Minimal VCD dump block for a custom testbench."""
+    return (
+        "\n  initial begin\n"
+        f'    $dumpfile("{wave_file}");\n'
+        f"    $dumpvars(0, {tb_top});\n"
+        "  end\n"
     )
 
 

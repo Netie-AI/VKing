@@ -1,0 +1,34 @@
+{
+  "run_id": "run-0015",
+  "timestamp": "2026-07-08T14:45:00+08:00",
+  "target": "v0.1 prototype — custom user testbench support",
+  "plan_section": "section 9 (UI) + ISimBackend custom TB",
+  "interfaces_touched": [
+    "RunRequest (auto_tb flag, no silent TB replace)",
+    "ingest (parse_tb_top_module, analyze_tb_source, wave_dump_snippet)",
+    "runner (detect TB top e.g. shift_2bit_tb, custom TB G2 pass on $finish)",
+    "IUIRenderer (Generate auto TB + Insert wave dump, TB tab preserved)"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/ingest.py",
+    "prototype/vking_proto/runner.py",
+    "prototype/vking_proto/app.py",
+    "prototype/vking_proto/waves.py",
+    "prototype/templates/index.html",
+    "prototype/examples/shift_2bit.v",
+    "prototype/examples/shift_2bit_tb.v",
+    "prototype/examples/samples.json"
+  ],
+  "gate_results": {
+    "shift_2bit_custom_tb": "G1/G2 PASS with shift_2bit_tb top, q1/q2 in waves"
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "Run no longer auto-generates TB silently — user TB tab is authoritative",
+    "Sync TB renamed Generate auto TB with confirm dialog",
+    "Online EDAPlayground-style sim is local iverilog only in v0.1"
+  ],
+  "open_questions_for_claude": [
+    "Review custom TB G2 pass without VKING_RESULT vs master plan gates"
+  ]
+}

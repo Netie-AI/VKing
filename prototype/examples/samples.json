@@ -1,5 +1,12 @@
 [
   {
+    "id": "shift_2bit",
+    "name": "2-bit shift (custom TB)",
+    "file": "shift_2bit.v",
+    "tb_file": "shift_2bit_tb.v",
+    "description": "DUT + your own testbench — load both tabs, then Run Sim."
+  },
+  {
     "id": "counter",
     "name": "8-bit counter",
     "file": "counter.v",

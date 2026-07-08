@@ -42,6 +42,7 @@ class RunRequest(BaseModel):
     source: str
     top_module: str | None = None
     tb_source: str | None = None
+    auto_tb: bool = False
 
 
 class SyncTbRequest(BaseModel):
@@ -153,10 +154,20 @@ def _resolve_wave_path(run_id: str | None, wave_path: str | None) -> Path:
     raise HTTPException(status_code=404, detail="no waveform artifact for run")
 
 
-def _tb_for_run(view: ingest.ModuleView, cfg: TbGenConfig, tb_override: str | None) -> str:
-    if tb_override:
+def _tb_for_run(
+    view: ingest.ModuleView,
+    cfg: TbGenConfig,
+    tb_override: str | None,
+    *,
+    auto_tb: bool = False,
+) -> str:
+    if tb_override and tb_override.strip():
         return tb_override
-    return generate_clk_rst_smoke(view, cfg)
+    if auto_tb:
+        return generate_clk_rst_smoke(view, cfg)
+    raise ValueError(
+        "Testbench is empty. Paste your TB in the TB tab, or click Generate auto TB."
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -203,6 +214,11 @@ def api_sample_get(sample_id: str) -> dict:
         "description": match.get("description", ""),
         "source": path.read_text(encoding="utf-8"),
         "module": parse_verilog_source(path.read_text(encoding="utf-8")).name,
+        "tb_source": (
+            (EXAMPLES_DIR / match["tb_file"]).read_text(encoding="utf-8")
+            if match.get("tb_file") and (EXAMPLES_DIR / match["tb_file"]).is_file()
+            else None
+        ),
     }
 
 
@@ -226,6 +242,32 @@ def api_sync_tb(req: SyncTbRequest) -> dict:
         "tb": tb_source,
         "module": view.name,
         "ports": _view_to_dict(view)["ports"],
+        "note": "Generates a template smoke TB — replaces TB tab content. Use your own TB via the TB tab instead.",
+    }
+
+
+@app.post("/api/tb/add-waves")
+def api_tb_add_waves(req: SyncTbRequest) -> dict:
+    """Append $dumpfile/$dumpvars to user TB if missing (does not replace stimulus)."""
+    tb = req.source or ""
+    info = ingest.analyze_tb_source(tb)
+    top = info.get("tb_top")
+    if not top:
+        raise HTTPException(status_code=400, detail="No module found in TB source")
+    if info.get("has_dumpfile") and info.get("has_dumpvars"):
+        return {"tb": tb, "tb_top": top, "changed": False, "message": "TB already has wave dumps"}
+    snippet = ingest.wave_dump_snippet(top)
+    # Insert before endmodule if possible
+    idx = tb.lower().rfind("endmodule")
+    if idx >= 0:
+        updated = tb[:idx] + snippet + tb[idx:]
+    else:
+        updated = tb + snippet
+    return {
+        "tb": updated,
+        "tb_top": top,
+        "changed": True,
+        "message": f"Added VCD dump for module {top}",
     }
 
 
@@ -294,9 +336,13 @@ def api_run(req: RunRequest) -> dict:
 
     cfg = TbGenConfig()
     try:
-        tb_source = _tb_for_run(view, cfg, req.tb_source)
+        tb_source = _tb_for_run(view, cfg, req.tb_source, auto_tb=req.auto_tb)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    tb_info = ingest.analyze_tb_source(tb_source)
+    tb_top = tb_info.get("tb_top") or cfg.tb_top
+    cfg.tb_top = tb_top
 
     health = doctor.doctor_report()
 
@@ -346,6 +392,8 @@ def api_run(req: RunRequest) -> dict:
             "manifest": manifest_dict,
             "log": health.get("install_hint") or "Toolchain missing — artifacts generated, sim skipped.",
             "tb": tb_source,
+            "tb_top": tb_top,
+            "tb_warnings": tb_info.get("warnings", []),
             "demo_waves": True,
             "artifact_paths": manifest.artifact_paths.model_dump(),
             "artifact_urls": _artifact_urls(manifest, run_dir),
@@ -382,7 +430,8 @@ def api_run(req: RunRequest) -> dict:
     return {
         "manifest": manifest_dict,
         "log": log_text,
-        "tb": tb_source,
+        "tb_top": tb_top,
+        "tb_warnings": tb_info.get("warnings", []),
         "artifact_paths": manifest.artifact_paths.model_dump(),
         "artifact_urls": _artifact_urls(manifest, run_dir),
         "ports": _view_to_dict(view)["ports"],
