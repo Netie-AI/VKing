@@ -227,11 +227,32 @@
     .run-card.pass .rc-val { color: var(--success); }
     .run-card.fail .rc-val { color: var(--danger); }
 
-    .wave-legend-swatch {
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-      display: inline-block;
+    .wave-canvas-box {
+      cursor: crosshair;
+    }
+
+    #netlist-svg-host {
+      min-height: 220px;
+      max-height: 420px;
+      overflow: auto;
+      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--data-border);
+      padding: 8px;
+    }
+
+    #netlist-svg-host svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .auto-opt {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
     }
 
     /* ── Workbench layout ── */
@@ -741,7 +762,7 @@
             <button type="button" class="primary" id="btn-run" title="Compile + simulate with Icarus">③ Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
-          <p class="beginner-strip"><strong>Quick start:</strong> ① Demo → ② Sync TB → ③ Run Sim → open <em>Waves</em> tab (click waveform to inspect delta). Install tools: <code>C:\oss-cad-suite</code> via <a href="https://r2.ieee.org/columbus-ssccas/resources/open-source-ic-tools/" target="_blank" rel="noopener" style="color:var(--accent)">IEEE guide</a>.</p>
+          <p class="beginner-strip"><strong>How to use:</strong> ① Load sample → ② Sync TB → ③ Run Sim. <em>Waves</em> = in-browser preview (includes DUT signals like <code>q</code>). <strong>Click</strong> the wave chart → jumps to <em>Delta</em> at nearest event. <em>GTKWave</em> opens the same VCD with signals pre-loaded — no re-run needed. AMBA/complex buses: not in v0.1 yet.</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -787,7 +808,8 @@
                 <div class="artifact-links" id="artifact-links">
                   <span style="color:var(--text-muted);font-size:0.75rem">Run simulation to generate artifacts</span>
                 </div>
-                <button type="button" id="btn-gtkwave" disabled>Open waves in GTKWave</button>
+                <button type="button" id="btn-gtkwave" disabled>Open this run in GTKWave</button>
+                <label class="auto-opt"><input type="checkbox" id="auto-gtkwave" checked /> Auto-open GTKWave after sim</label>
               </div>
             </div>
           </div>
@@ -803,8 +825,7 @@
           <div class="result-pane" id="result-delta">
             <div class="result-body">
               <div class="disclaimer">
-                Reconstructed delta is derived from VCD value changes, not the VPI scheduler.
-                Times and ordering are approximate — use GTKWave for authoritative wave inspection.
+                Delta = value changes at one VCD timestamp (file order). Click the <em>Waves</em> chart — we snap to the nearest event time. Not true IEEE delta cycles; GTKWave is authoritative for timing.
               </div>
               <div class="delta-controls">
                 <label title="VCD timestamp (#time); click the Waves chart to pick a time">Sim time:
@@ -827,7 +848,7 @@
           <!-- Waves -->
           <div class="result-pane" id="result-waves">
             <div class="result-body wave-wrap">
-              <p class="wave-meta" id="wave-meta">Run simulation, then open this tab. Click a trace to jump to Delta.</p>
+              <p class="wave-meta" id="wave-meta">Run simulation first. Click anywhere on the chart to inspect delta at that time.</p>
               <div class="wave-canvas-box" id="wave-box">
                 <svg id="wave-svg" xmlns="http://www.w3.org/2000/svg"></svg>
               </div>
@@ -839,11 +860,10 @@
           <div class="result-pane" id="result-schematic">
             <div class="result-body">
               <div class="disclaimer">
-                Block diagram from Yosys elaboration. Paste JSON into
-                <a href="https://netlistsvg.com/app" target="_blank" rel="noopener" style="color:var(--accent)">netlistsvg</a>
-                for full schematic (see IEEE Columbus guide).
+                Block diagram from Yosys. Rendered inline below; external editor still available.
               </div>
-              <div class="schematic-box" id="schematic-box">
+              <div id="netlist-svg-host">Click <strong>Schematic</strong> in the toolbar to render.</div>
+              <div class="schematic-box" id="schematic-box" style="margin-top:10px;display:none">
                 Click <strong>Schematic</strong> in the toolbar (or switch here after Run) to build netlist JSON from your DUT.
               </div>
               <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
@@ -1102,9 +1122,34 @@ endmodule`;
             $('delta-time').value = pick;
             fetchDelta(pick);
           }
+          if ($('auto-gtkwave').checked) {
+            launchGtkwave(false);
+          }
         });
       } else if (state.activeResult === 'waves') {
         loadWaves();
+      }
+    }
+
+    async function launchGtkwave(showAlert) {
+      if (!state.runId) return;
+      try {
+        const r = await fetch('/api/gtkwave', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ run_id: state.runId }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          if (showAlert !== false) alert(data.detail || 'GTKWave launch failed');
+          return;
+        }
+        const sigHint = (data.signals || []).slice(0, 4).join(', ');
+        $('left-status').textContent =
+          'GTKWave opened this run — signals: ' + (sigHint || 'see hierarchy') +
+          (data.signals?.length > 4 ? '…' : '');
+      } catch (e) {
+        if (showAlert !== false) alert('GTKWave error: ' + e.message);
       }
     }
 
@@ -1146,7 +1191,7 @@ endmodule`;
         state.waveData = data;
         state.timescaleNs = parseTimescaleNs(data.timescale);
         meta.textContent =
-          `timescale ${data.timescale} · t_max ${data.t_max} · ${data.signals.length} signal(s)` +
+          `timescale ${data.timescale} · t_max ${data.t_max} · ${data.signals.length} signal(s) · click chart → Delta` +
           (data.message ? ' — ' + data.message : '');
         drawWaves(data);
       } catch (e) {
@@ -1366,6 +1411,9 @@ endmodule`;
           return;
         }
         $('delta-note').textContent = data.message || (data.available ? 'ok' : 'unavailable');
+        if (data.snapped_time != null && data.snapped_time !== timeNs) {
+          $('delta-time').value = data.snapped_time;
+        }
         const body = $('delta-body');
         if (!data.rows || !data.rows.length) {
           body.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted)">No delta rows at this time</td></tr>';
@@ -1376,6 +1424,21 @@ endmodule`;
         ).join('');
       } catch (e) {
         $('delta-note').textContent = 'Delta fetch error: ' + e.message;
+      }
+    }
+
+    async function renderNetlistSvg(json) {
+      const host = $('netlist-svg-host');
+      host.textContent = 'Rendering schematic…';
+      try {
+        const mod = await import('https://cdn.skypack.dev/netlistsvg');
+        const render = mod.default || mod;
+        const svg = typeof render === 'function' ? render(json) : render.render(json);
+        host.innerHTML = svg || '<span style="color:var(--text-muted)">Empty schematic</span>';
+      } catch (e) {
+        host.innerHTML =
+          '<span style="color:var(--warn)">Inline render failed — use Copy JSON + ' +
+          '<a href="https://netlistsvg.com/app" target="_blank" rel="noopener" style="color:var(--accent)">netlistsvg.com</a></span>';
       }
     }
 
@@ -1402,10 +1465,10 @@ endmodule`;
           return;
         }
         state.netlistJson = data.netlist;
+        await renderNetlistSvg(data.netlist);
         $('schematic-box').innerHTML =
-          `<strong>Top:</strong> ${esc(data.top)} · <strong>modules:</strong> ${data.module_count}<br>` +
-          esc(data.hint || '') +
-          `<pre id="netlist-preview">${esc(JSON.stringify(data.netlist, null, 2).slice(0, 4000))}${JSON.stringify(data.netlist).length > 4000 ? '\n… (truncated preview)' : ''}</pre>`;
+          `<strong>Top:</strong> ${esc(data.top)} · <strong>modules:</strong> ${data.module_count}`;
+        $('schematic-box').style.display = 'block';
         $('btn-copy-netlist').disabled = false;
         $('btn-open-netlistsvg').disabled = false;
         if (showTab !== false) setActiveResult('schematic');
@@ -1572,20 +1635,7 @@ endmodule`;
       window.open('https://netlistsvg.com/app', '_blank', 'noopener');
     });
 
-    $('btn-gtkwave').addEventListener('click', async () => {
-      if (!state.runId) return;
-      const r = await fetch('/api/gtkwave', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run_id: state.runId }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        alert(data.detail || 'GTKWave launch failed');
-        return;
-      }
-      $('left-status').textContent = 'Launched GTKWave: ' + data.wave_path;
-    });
+    $('btn-gtkwave').addEventListener('click', () => launchGtkwave(true));
 
     $('btn-delta').addEventListener('click', async () => {
       if (!state.runId) return;

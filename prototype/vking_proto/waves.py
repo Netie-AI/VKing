@@ -27,8 +27,11 @@ def _signal_leaf(name: str) -> str:
 
 
 def _default_signal_filter(name: str) -> bool:
+    lower = name.lower()
+    if ".u_dut." in lower:
+        return True
     leaf = _signal_leaf(name)
-    if leaf in ("clk", "clock", "en") or leaf.endswith("_clk") or leaf.endswith("clk"):
+    if leaf in ("clk", "clock", "en", "q") or leaf.endswith("_clk") or leaf.endswith("clk"):
         return True
     if leaf.startswith("rst") or leaf.startswith("reset"):
         return True

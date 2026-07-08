@@ -1,0 +1,38 @@
+{
+  "run_id": "run-0014",
+  "timestamp": "2026-07-08T14:30:00+08:00",
+  "target": "v0.1 prototype — wave/delta/gtkwave UX + verilator lint fix",
+  "plan_section": "section 9 (UI) + wave/delta panels",
+  "interfaces_touched": [
+    "waves (include u_dut.q and DUT hierarchy)",
+    "delta (snap to nearest VCD event time)",
+    "gtkwave_launch (auto .gtkw save with signals)",
+    "doctor (VERILATOR_ROOT=share/verilator override)",
+    "IUIRenderer (inline netlistsvg, auto GTKWave, workflow help)"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/doctor.py",
+    "prototype/vking_proto/waves.py",
+    "prototype/vking_proto/delta.py",
+    "prototype/vking_proto/gtkwave_launch.py",
+    "prototype/vking_proto/app.py",
+    "prototype/templates/index.html"
+  ],
+  "gate_results": {
+    "G0": "PASS (after VERILATOR_ROOT fix)",
+    "G2": "PASS",
+    "run_samples": "3/3 PASS",
+    "toggle_ff_waves": "includes tb_top.u_dut.q",
+    "delta_snap": "63676 -> 65000 with 3 rows"
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "GTKWave cannot embed in browser — auto-opens external app with pre-loaded signals",
+    "Delta remains VCD-order reconstruction not VPI — snap-to-nearest-event added",
+    "AMBA/master-slave complex buses not in v0.1 scope"
+  ],
+  "open_questions_for_claude": [
+    "Review inline netlistsvg CDN dependency vs bundled asset",
+    "Confirm auto-open GTKWave default-on UX"
+  ]
+}

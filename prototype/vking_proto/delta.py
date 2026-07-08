@@ -288,6 +288,18 @@ def trace_to_json(events: list[DeltaEvent], limit: int = 500) -> dict[str, Any]:
     }
 
 
+def nearest_event_time(events: list[DeltaEvent], time: int) -> int | None:
+    """Return closest simulation time that has at least one value change."""
+    times = sorted({e["time"] for e in events})
+    if not times:
+        return None
+    best = times[0]
+    for t in times:
+        if abs(t - time) < abs(best - time):
+            best = t
+    return best
+
+
 def reconstruct(path: str | Path, time_ns: float) -> dict[str, Any]:
     """Build delta-panel rows for a waveform path at simulation time ``time_ns``.
 
@@ -297,6 +309,7 @@ def reconstruct(path: str | Path, time_ns: float) -> dict[str, Any]:
     """
     parsed = parse_vcd(path)
     time = int(time_ns)
+    requested_time = time
 
     if not parsed.events:
         reason = parsed.reason or "no value-change events parsed"
@@ -310,10 +323,16 @@ def reconstruct(path: str | Path, time_ns: float) -> dict[str, Any]:
 
     at_time = events_at_time(parsed.events, time)
     if not at_time:
+        snapped = nearest_event_time(parsed.events, time)
+        if snapped is not None and snapped != time:
+            time = snapped
+            at_time = events_at_time(parsed.events, time)
+    if not at_time:
         return {
             "available": True,
-            "message": f"no value changes at #{time}",
-            "time_ns": time_ns,
+            "message": f"no value changes at #{requested_time} (nearest: none)",
+            "time_ns": requested_time,
+            "snapped_time": None,
             "rows": [],
             "disclaimer": "reconstructed from VCD file order (prototype)",
         }
@@ -335,10 +354,12 @@ def reconstruct(path: str | Path, time_ns: float) -> dict[str, Any]:
     return {
         "available": True,
         "message": (
-            f"{len(rows)} reconstructed delta step(s) at #{time} "
-            "(VCD order, not VPI)"
+            f"{len(rows)} reconstructed delta step(s) at #{time}"
+            + (f" (snapped from #{requested_time})" if time != requested_time else "")
+            + " — VCD order, not VPI"
         ),
-        "time_ns": time_ns,
+        "time_ns": requested_time,
+        "snapped_time": time,
         "rows": rows,
         "disclaimer": "reconstructed from VCD file order (prototype)",
         "summary": summary_at_time(parsed.events, time),

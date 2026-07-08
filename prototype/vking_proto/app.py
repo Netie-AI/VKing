@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import ai_generate, delta, doctor, ingest, netlist, runner, tbgen, waves
+from . import ai_generate, delta, doctor, gtkwave_launch, ingest, netlist, runner, tbgen, waves
 from .config import ai_config_public, get_ai_config
 from .ingest import parse_verilog_source
 from .manifest import ArtifactPaths, GateResult, GateStatus, RunManifest
@@ -440,30 +440,13 @@ def api_gtkwave(req: GtkwaveRequest) -> dict:
     if not wave.exists():
         raise HTTPException(status_code=404, detail=f"wave file not found: {wave}")
 
-    gtkwave = health["tools"]["gtkwave"]["path"] or "gtkwave"
-    cmd = [gtkwave, str(wave.resolve())]
-
+    save_path = wave.with_suffix(".gtkw")
     try:
-        if sys.platform == "win32":
-            subprocess.Popen(
-                cmd,
-                creationflags=subprocess.DETACHED_PROCESS
-                | subprocess.CREATE_NEW_PROCESS_GROUP,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-            )
-        else:
-            subprocess.Popen(
-                cmd,
-                start_new_session=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-    except OSError as exc:
+        result = gtkwave_launch.launch_gtkwave(wave, save_path=save_path)
+    except (OSError, RuntimeError) as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    return {"launched": True, "wave_path": str(wave), "command": cmd}
+    return result
 
 
 def main() -> None:

@@ -65,7 +65,12 @@ def ensure_path_env() -> str | None:
         return None
     bin_str = str(root / "bin")
     lib_str = str(root / "lib")
-    os.environ.setdefault("YOSYSHQ_ROOT", str(root) + os.sep)
+    verilator_root = root / "share" / "verilator"
+    if verilator_root.is_dir():
+        os.environ["VERILATOR_ROOT"] = str(verilator_root)
+    os.environ["YOSYSHQ_ROOT"] = str(root) + os.sep
+    os.environ["GTK_EXE_PREFIX"] = str(root)
+    os.environ["GTK_DATA_PREFIX"] = str(root)
     prepend = [bin_str, lib_str]
     current = os.environ.get("PATH", "")
     parts = current.split(os.pathsep) if current else []
