@@ -1,0 +1,34 @@
+{
+  "run_id": "run-0001",
+  "timestamp": "2026-07-08T11:47:00+08:00",
+  "target": "orchestration bootstrap (pre-v0.1)",
+  "interfaces_touched": [],
+  "files_changed": [
+    "vking-master-plan.md",
+    ".cursor/rules/00-source-of-truth.mdc",
+    ".cursor/agents/repo-surveyor.md",
+    ".cursor/agents/gate-runner.md",
+    ".cursor/agents/handoff-writer.md",
+    ".cursor/skills/vking-handoff/SKILL.md",
+    ".cursor/skills/repo-knowledge/cortex/SKILL.md",
+    ".cursor/skills/repo-knowledge/gtkwave/SKILL.md",
+    ".cursor/skills/repo-knowledge/iverilog/SKILL.md",
+    ".cursor/skills/repo-knowledge/opensta/SKILL.md",
+    ".cursor/skills/repo-knowledge/verilator/SKILL.md",
+    ".cursor/skills/repo-knowledge/yosys/SKILL.md",
+    ".cursor/skills/repo-knowledge/lightma/SKILL.md",
+    "docs/handoffs/.gitkeep"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "gate-runner.md and handoff-writer.md added with plan-derived prompts — user spec listed them in layout but only provided verbatim text for repo-surveyor.md",
+    "repo-knowledge SKILL.md files are placeholders awaiting repo-surveyor subagent runs (Step 1)",
+    "§14 / post-interview timeline references not updated — flagged by user for a later pass, not touched this run"
+  ],
+  "open_questions_for_claude": [
+    "Review orchestration layout: precedence rule, handoff schema, agent prompts align with §7–8 run manifest and provenance enum?",
+    "Approve running seven parallel repo-surveyor subagents next to populate repo-knowledge cards?",
+    "When to schedule §14 / interview-timeline de-anchor pass before ground-truth use?"
+  ]
+}

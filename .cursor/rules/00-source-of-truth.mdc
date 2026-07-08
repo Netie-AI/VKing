@@ -1,0 +1,29 @@
+---
+description: Vking master plan precedence, interface freeze, gates, provenance, and session handoff
+alwaysApply: true
+---
+
+Before anything else, read STATE.md. It is small by design.
+Only pull in the cited plan section, handoff file, or repo-knowledge skill
+if the current task actually needs it. Do not read the full master plan or
+full handoff history by default. repos/* is off-limits except to
+repo-surveyor.
+
+vking-master-plan.md is the single source of truth. Precedence when anything
+conflicts: this rule > STATE.md > vking-master-plan.md > repo-knowledge skills > the
+current task prompt.
+
+repos/* is never indexed or read by default — only repo-surveyor opens files
+inside it, on explicit invocation.
+
+Never violate an interface frozen in §4.4 without writing a migration note
+per §4.4's own rule. Never soften a fail-closed gate from §7. Never invent or
+self-promote a provenance level — §8's enforcement mechanisms apply to your
+own output too: you may self-assign up to L2_sim_active (whatever you can
+mechanically verify by running gates yourself); L3+ requires human or Claude
+review. Never write "reviewed" or "verified" — that's Claude's word to write,
+not yours.
+
+At the end of every run, invoke the vking-handoff skill, then run
+tools/render_state.py (or invoke state-updater), then invoke vking-git-push
+(or git-pusher) to push the run branch to origin before stopping.

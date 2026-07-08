@@ -1,0 +1,41 @@
+{
+  "run_id": "run-0002",
+  "timestamp": "2026-07-08T11:53:00+08:00",
+  "target": "orchestration bootstrap — repos/ layout + STATE.md entry point",
+  "plan_section": "§13 (orchestration) + §4.4 (interfaces for repo-surveyor)",
+  "interfaces_touched": [],
+  "files_changed": [
+    "repos/cortex/",
+    "repos/gtkwave/",
+    "repos/iverilog/",
+    "repos/opensta/",
+    "repos/verilator/",
+    "repos/yosys/",
+    "repos/lightma/",
+    "tools/render_state.py",
+    "STATE.md",
+    ".cursor/rules/00-source-of-truth.mdc",
+    ".cursor/agents/repo-surveyor.md",
+    ".cursor/agents/state-updater.md",
+    ".cursor/skills/vking-state/SKILL.md",
+    ".cursor/skills/repo-knowledge/cortex/SKILL.md",
+    ".cursor/skills/repo-knowledge/gtkwave/SKILL.md",
+    ".cursor/skills/repo-knowledge/iverilog/SKILL.md",
+    ".cursor/skills/repo-knowledge/opensta/SKILL.md",
+    ".cursor/skills/repo-knowledge/verilator/SKILL.md",
+    ".cursor/skills/repo-knowledge/yosys/SKILL.md",
+    ".cursor/skills/repo-knowledge/lightma/SKILL.md"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "Cortex/gtkwave/OpenSTA/yosys Move-Item left orphan .git dirs at root on Windows — merged into repos/* manually",
+    "lightma has no git pin in vendored tree — surveyor noted version 0.1.0 only",
+    "run-0001 remains latest until this file written; STATE.md generated from run-0002"
+  ],
+  "open_questions_for_claude": [
+    "Review seven repo-knowledge SKILL.md cards — especially Cortex (IMemoryStore) and lightma (v0.6 gate) scope boundaries",
+    "Confirm STATE.md read-order rule and repos/* off-limits default are sufficient for token budget",
+    "When to schedule §14 / post-interview de-anchor pass?"
+  ]
+}

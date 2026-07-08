@@ -1,0 +1,17 @@
+# Vendored toolchain checkouts — local reference only (each has its own .git)
+repos/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets
+.env
+*.pem
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
