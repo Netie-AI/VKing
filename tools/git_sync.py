@@ -5,7 +5,7 @@ Subcommands:
   push-run    Create/push branch named after latest handoff run_id
   merge-run   Merge approved run branch into main (requires -review.json verdict pass)
 
-Remote: https://github.com/jian-hong/Vking.git
+Remote: https://github.com/Netie-AI/VKing.git
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HANDOFFS_DIR = ROOT / "docs" / "handoffs"
-REMOTE = "https://github.com/jian-hong/Vking.git"
+REMOTE = "https://github.com/Netie-AI/VKing.git"
 MAIN_BRANCH = "main"
 
 
@@ -132,7 +132,9 @@ def merge_run(run_id: str | None = None) -> None:
     branch = run_id
     _run(["git", "fetch", "origin"])
     _run(["git", "checkout", MAIN_BRANCH])
-    _run(["git", "pull", "origin", MAIN_BRANCH])
+    pull = _run(["git", "pull", "origin", MAIN_BRANCH], check=False)
+    if pull.returncode != 0:
+        print(f"note: no existing {MAIN_BRANCH} on origin (first merge)")
     _run(["git", "merge", branch, "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"])
     _run(["git", "push", "origin", MAIN_BRANCH])
     print(f"merged {branch} -> {MAIN_BRANCH} and pushed")

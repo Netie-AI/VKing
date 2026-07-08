@@ -1,0 +1,25 @@
+{
+  "run_id": "run-0004",
+  "timestamp": "2026-07-08T12:43:00+08:00",
+  "target": "remote retarget Netie-AI/VKing + supply Claude review artifacts (run-0002/0003 never reviewed)",
+  "plan_section": "§11 (dogfooding / orchestration)",
+  "interfaces_touched": [],
+  "files_changed": [
+    "tools/git_sync.py",
+    ".cursor/skills/vking-git-push/SKILL.md",
+    ".cursor/agents/git-pusher.md"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "run-0002 and run-0003 were pushed without Claude review JSON — merge-run correctly blocked",
+    "Prior push went to jian-hong/Vking; retargeted to Netie-AI/VKing",
+    "STATE.md now tracks run-0004; uploaded STATE.md in Claude chat may have been stale"
+  ],
+  "open_questions_for_claude": [
+    "Review run-0002.json first (repo-surveyor 7/7 + STATE.md + cortex/lightma cards) — write run-0002-review.json",
+    "Then review run-0003.json (git_sync.py) — write run-0003-review.json",
+    "Then review run-0004.json (remote retarget) — write run-0004-review.json",
+    "Do not merge-run until each run has verdict pass in order"
+  ]
+}

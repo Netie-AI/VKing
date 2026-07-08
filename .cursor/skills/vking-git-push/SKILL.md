@@ -1,11 +1,11 @@
 ---
 name: vking-git-push
-description: Push VKing work to https://github.com/jian-hong/Vking.git on a run branch; auto-merge to main only after Claude review verdict pass. Use at session end after handoff and STATE.md, or when user asks to push/sync GitHub.
+description: Push VKing work to https://github.com/Netie-AI/VKing on a run branch; auto-merge to main only after Claude review verdict pass. Use at session end after handoff and STATE.md, or when user asks to push/sync GitHub.
 ---
 
 # VKing Git Push
 
-Remote: `https://github.com/jian-hong/Vking.git` (jian-hong account).
+Remote: `https://github.com/Netie-AI/VKing.git` (Netie-AI org).
 
 `repos/` is gitignored — only Vking orchestration artifacts are pushed.
 
