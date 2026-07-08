@@ -176,7 +176,15 @@ def parse_tb_top_module(tb_source: str) -> str | None:
     return names[-1]
 
 
-def analyze_tb_source(tb_source: str) -> dict[str, Any]:
+def tb_instantiates_module(tb_source: str, module_name: str) -> bool:
+    """Heuristic: TB source mentions DUT module as an instance."""
+    if not module_name:
+        return True
+    cleaned = _strip_comments(tb_source or "")
+    return bool(re.search(rf"\b{re.escape(module_name)}\s+\w+\s*\(", cleaned, re.IGNORECASE))
+
+
+def analyze_tb_source(tb_source: str, *, dut_module: str | None = None) -> dict[str, Any]:
     """Static checks on user/testbench Verilog before sim."""
     text = tb_source or ""
     top = parse_tb_top_module(text)
@@ -195,6 +203,10 @@ def analyze_tb_source(tb_source: str) -> dict[str, Any]:
         )
     if top is None:
         warnings.append("Could not detect testbench module name — compile may fail.")
+    if dut_module and not tb_instantiates_module(text, dut_module):
+        warnings.append(
+            f"TB does not instantiate DUT module '{dut_module}' — Sync TB or fix instance name."
+        )
     return {
         "tb_top": top,
         "has_dumpfile": has_dump,

@@ -793,11 +793,12 @@
             <textarea class="editor" id="editor-dut" spellcheck="false" placeholder="Paste DUT Verilog here…"></textarea>
           </div>
           <div class="editor-pane" id="pane-tb">
-            <textarea class="editor" id="editor-tb" spellcheck="false" placeholder="Your testbench — or click Sync TB to generate template + wave dump…"></textarea>
+            <textarea class="editor" id="editor-tb" spellcheck="false" placeholder="Your testbench — paste yours, or click Sync TB to auto-generate from DUT ports…"></textarea>
           </div>
 
           <div class="toolbar glass">
-            <button type="button" id="btn-sync-tb" title="Sync testbench: generates template if TB empty, or adds $dumpvars to your TB">Sync TB</button>
+            <button type="button" id="btn-sync-tb" title="Generate template TB from DUT ports (replaces TB tab)">Sync TB</button>
+            <button type="button" id="btn-add-waves" title="Append $dumpfile/$dumpvars to your TB — keeps your stimulus">Insert wave dump</button>
             <button type="button" id="btn-parse">Parse</button>
             <select class="ai-model-select" id="ai-model-select" title="AI model (set VKING_AI_MODELS in .env for more)"></select>
             <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
@@ -806,7 +807,7 @@
             <button type="button" class="primary" id="btn-run" title="Compile + simulate — uses your DUT + TB tabs">Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
-          <p class="beginner-strip"><strong>Your flow:</strong> Paste your design in <em>DUT</em> · testbench in <em>TB</em> (optional) · <strong>Sync TB</strong> · <strong>Run Sim</strong>. Examples in the header load only when you click <em>Load example</em> — they never replace your work automatically.</p>
+          <p class="beginner-strip"><strong>Two paths:</strong> (A) Paste DUT → <strong>Sync TB</strong> → <strong>Run Sim</strong> for auto template. (B) Paste DUT + your TB → <strong>Insert wave dump</strong> if needed → <strong>Run Sim</strong>. Run Sim never replaces your editors — only Sync TB does (with confirm).</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -1221,7 +1222,12 @@ endmodule`;
       renderRunSummary(data.manifest, data.log);
       $('sim-log').textContent = data.log || '(empty log)';
       renderArtifacts(state.artifactUrls);
-      if (data.tb_warnings && data.tb_warnings.length) {
+      const g1 = data.manifest?.gate_results?.G1?.status;
+      if (g1 === 'FAIL') {
+        setActiveResult('log');
+        $('left-status').textContent =
+          'Compile failed — see Log tab for iverilog errors (often DUT/TB port mismatch)';
+      } else if (data.tb_warnings && data.tb_warnings.length) {
         $('left-status').textContent =
           'Run ' + state.runId + ' — ' + data.tb_warnings.join(' ');
       } else {
@@ -1706,24 +1712,45 @@ endmodule`;
 
     $('btn-sync-tb').addEventListener('click', async () => {
       const dut = getEditor('dut').value;
-      const tb = getEditor('tb').value;
       if (!dut.trim()) {
-        $('left-status').textContent = 'Paste your design in the DUT tab first';
+        $('left-status').textContent = 'DUT tab is empty — paste your design first';
         setActiveEditor('dut');
         return;
       }
-      $('left-status').textContent = tb.trim()
-        ? 'Sync TB — checking your testbench + adding wave dump if needed…'
-        : 'Sync TB — generating template testbench…';
+      if (getEditor('tb').value.trim() &&
+          !confirm('Replace your testbench with an auto-generated template synced to DUT ports?')) {
+        $('left-status').textContent = 'Kept your TB — use Insert wave dump for custom TB, or Run Sim as-is';
+        return;
+      }
+      $('left-status').textContent = 'Sync TB — generating template from DUT ports…';
       try {
-        const data = await apiJson('/api/sync-tb', { source: dut, tb_source: tb.trim() || null });
-        if (data.changed !== false) getEditor('tb').value = data.tb || tb;
+        const data = await apiJson('/api/sync-tb', { source: dut });
+        getEditor('tb').value = data.tb || '';
         saveEditorDraft();
         if (data.ports) renderPorts(data.ports);
         setActiveEditor('tb');
-        $('left-status').textContent = data.message || 'Sync TB done';
+        $('left-status').textContent = data.message || 'Sync TB done — review TB tab, then Run Sim';
       } catch (e) {
         $('left-status').textContent = 'Sync TB failed: ' + e.message;
+      }
+    });
+
+    $('btn-add-waves').addEventListener('click', async () => {
+      const tb = getEditor('tb').value;
+      if (!tb.trim()) {
+        $('left-status').textContent = 'TB tab is empty — paste your testbench first';
+        setActiveEditor('tb');
+        return;
+      }
+      $('left-status').textContent = 'Insert wave dump — adding $dumpvars to your TB…';
+      try {
+        const data = await apiJson('/api/tb/add-waves', { source: tb });
+        if (data.changed !== false) getEditor('tb').value = data.tb || tb;
+        saveEditorDraft();
+        setActiveEditor('tb');
+        $('left-status').textContent = data.message || 'Wave dump added';
+      } catch (e) {
+        $('left-status').textContent = 'Insert wave dump failed: ' + e.message;
       }
     });
 
@@ -1772,7 +1799,7 @@ endmodule`;
       let tb = data.verilog || '';
       if (tb && !/\$dumpfile/.test(tb)) {
         try {
-          const wdata = await apiJson('/api/sync-tb', { source: dut, tb_source: tb });
+          const wdata = await apiJson('/api/tb/add-waves', { source: tb });
           if (wdata.changed !== false) tb = wdata.tb || tb;
         } catch {
           /* keep AI TB as-is */

@@ -48,6 +48,7 @@ def main() -> int:
         ("GET", "/api/samples/counter", None, None),
         ("POST", "/api/parse", "/api/parse", {"source": dut}),
         ("POST", "/api/sync-tb", "/api/sync-tb", {"source": dut}),
+        ("POST", "/api/tb/add-waves", "/api/tb/add-waves", {"source": "module tb; endmodule"}),
     ]
 
     for method, label, path, body in checks:

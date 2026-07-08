@@ -238,38 +238,7 @@ def api_demo_counter() -> dict:
 
 @app.post("/api/sync-tb")
 def api_sync_tb(req: SyncTbRequest) -> dict:
-    """Sync testbench: empty TB → generate template; existing TB → add wave dump only."""
-    tb_existing = (req.tb_source or "").strip()
-
-    if tb_existing:
-        info = ingest.analyze_tb_source(tb_existing)
-        top = info.get("tb_top")
-        if not top:
-            raise HTTPException(
-                status_code=400,
-                detail="No module found in TB tab — check your testbench has a module declaration",
-            )
-        if info.get("has_dumpfile") and info.get("has_dumpvars"):
-            return {
-                "tb": tb_existing,
-                "tb_top": top,
-                "changed": False,
-                "mode": "waves_only",
-                "message": f"TB already has $dumpvars — top module {top}",
-                "warnings": info.get("warnings", []),
-            }
-        snippet = ingest.wave_dump_snippet(top)
-        idx = tb_existing.lower().rfind("endmodule")
-        updated = tb_existing[:idx] + snippet + tb_existing[idx:] if idx >= 0 else tb_existing + snippet
-        return {
-            "tb": updated,
-            "tb_top": top,
-            "changed": True,
-            "mode": "waves_only",
-            "message": f"Added $dumpfile/$dumpvars(0, {top}) — your stimulus unchanged",
-            "warnings": info.get("warnings", []),
-        }
-
+    """Generate clk_rst_smoke template TB from DUT ports (replaces TB tab content)."""
     if not (req.source or "").strip():
         raise HTTPException(status_code=400, detail="DUT tab is empty — paste your design module first")
 
@@ -289,15 +258,44 @@ def api_sync_tb(req: SyncTbRequest) -> dict:
         "changed": True,
         "mode": "generated",
         "ports": _view_to_dict(view)["ports"],
-        "message": f"Generated template TB with $dumpvars(0, {cfg.tb_top})",
+        "message": f"Generated template TB with $dumpvars(0, {cfg.tb_top}) — review TB tab, then Run Sim",
+        "note": "Replaces TB tab. For your own testbench, paste it in TB and use Insert wave dump instead.",
     }
 
 
 @app.post("/api/tb/add-waves")
 def api_tb_add_waves(req: SyncTbRequest) -> dict:
-    """Legacy alias — prefer POST /api/sync-tb with tb_source set."""
-    req2 = SyncTbRequest(source="", tb_source=req.source)
-    return api_sync_tb(req2)
+    """Append $dumpfile/$dumpvars to user TB if missing (does not replace stimulus)."""
+    tb = (req.tb_source or req.source or "").strip()
+    if not tb:
+        raise HTTPException(status_code=400, detail="TB tab is empty — paste your testbench first")
+    info = ingest.analyze_tb_source(tb)
+    top = info.get("tb_top")
+    if not top:
+        raise HTTPException(
+            status_code=400,
+            detail="No module found in TB — check your testbench has a module declaration",
+        )
+    if info.get("has_dumpfile") and info.get("has_dumpvars"):
+        return {
+            "tb": tb,
+            "tb_top": top,
+            "changed": False,
+            "mode": "waves_only",
+            "message": f"TB already has $dumpvars — top module {top}",
+            "warnings": info.get("warnings", []),
+        }
+    snippet = ingest.wave_dump_snippet(top)
+    idx = tb.lower().rfind("endmodule")
+    updated = tb[:idx] + snippet + tb[idx:] if idx >= 0 else tb + snippet
+    return {
+        "tb": updated,
+        "tb_top": top,
+        "changed": True,
+        "mode": "waves_only",
+        "message": f"Added $dumpfile/$dumpvars(0, {top}) — your stimulus unchanged",
+        "warnings": info.get("warnings", []),
+    }
 
 
 @app.post("/api/ai/generate")
@@ -372,7 +370,7 @@ def api_run(req: RunRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    tb_info = ingest.analyze_tb_source(tb_source)
+    tb_info = ingest.analyze_tb_source(tb_source, dut_module=view.name)
     tb_top = tb_info.get("tb_top") or cfg.tb_top
     cfg.tb_top = tb_top
 
@@ -455,8 +453,14 @@ def api_run(req: RunRequest) -> dict:
     mk_path.write_text(_makefile_text(cfg.tb_top, cfg.wave_filename), encoding="utf-8")
     fl_path.write_text("dut.v\ntb.v\n", encoding="utf-8")
 
-    log_path = manifest.artifact_paths.sim_log
-    log_text = Path(log_path).read_text(encoding="utf-8") if log_path and Path(log_path).exists() else ""
+    g1 = manifest.gate_results.get("G1")
+    compile_path = manifest.artifact_paths.compile_log
+    sim_path = manifest.artifact_paths.sim_log
+    log_text = ""
+    if g1 and g1.status == GateStatus.FAIL and compile_path and Path(compile_path).exists():
+        log_text = Path(compile_path).read_text(encoding="utf-8")
+    elif sim_path and Path(sim_path).exists():
+        log_text = Path(sim_path).read_text(encoding="utf-8")
 
     manifest_dict = manifest.model_dump(mode="json")
     return {

@@ -1,0 +1,27 @@
+{
+  "run_id": "run-0019",
+  "timestamp": "2026-07-08T14:45:00+08:00",
+  "target": "restore Sync TB full regenerate + separate Insert wave dump (run-0015 behavior)",
+  "plan_section": "section 9 (UI)",
+  "interfaces_touched": [
+    "POST /api/sync-tb (always generate template from DUT — no tb_source branch)",
+    "POST /api/tb/add-waves (waves only — fixed broken legacy alias)",
+    "POST /api/run (compile.log surfaced on G1 FAIL)"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/app.py",
+    "prototype/vking_proto/ingest.py",
+    "prototype/templates/index.html",
+    "prototype/scripts/api_smoke.py"
+  ],
+  "gate_results": {
+    "api_smoke": "PASS",
+    "G2_counter_sync_tb": "PASS"
+  },
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "run-0017 unified sync-tb broke personal flow: non-empty TB only got dump insert leaving DUT/TB mismatch from localStorage drafts",
+    "Restored two-button UX: Sync TB replaces with confirm; Insert wave dump for custom TB"
+  ],
+  "open_questions_for_claude": []
+}
