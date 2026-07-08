@@ -47,6 +47,7 @@ class RunRequest(BaseModel):
 
 class SyncTbRequest(BaseModel):
     source: str
+    tb_source: str | None = None
 
 
 class AiGenerateRequest(BaseModel):
@@ -229,6 +230,41 @@ def api_demo_counter() -> dict:
 
 @app.post("/api/sync-tb")
 def api_sync_tb(req: SyncTbRequest) -> dict:
+    """Sync testbench: empty TB → generate template; existing TB → add wave dump only."""
+    tb_existing = (req.tb_source or "").strip()
+
+    if tb_existing:
+        info = ingest.analyze_tb_source(tb_existing)
+        top = info.get("tb_top")
+        if not top:
+            raise HTTPException(
+                status_code=400,
+                detail="No module found in TB tab — check your testbench has a module declaration",
+            )
+        if info.get("has_dumpfile") and info.get("has_dumpvars"):
+            return {
+                "tb": tb_existing,
+                "tb_top": top,
+                "changed": False,
+                "mode": "waves_only",
+                "message": f"TB already has $dumpvars — top module {top}",
+                "warnings": info.get("warnings", []),
+            }
+        snippet = ingest.wave_dump_snippet(top)
+        idx = tb_existing.lower().rfind("endmodule")
+        updated = tb_existing[:idx] + snippet + tb_existing[idx:] if idx >= 0 else tb_existing + snippet
+        return {
+            "tb": updated,
+            "tb_top": top,
+            "changed": True,
+            "mode": "waves_only",
+            "message": f"Added $dumpfile/$dumpvars(0, {top}) — your stimulus unchanged",
+            "warnings": info.get("warnings", []),
+        }
+
+    if not (req.source or "").strip():
+        raise HTTPException(status_code=400, detail="DUT tab is empty — paste your design module first")
+
     try:
         view = parse_verilog_source(req.source)
     except ValueError as exc:
@@ -241,34 +277,19 @@ def api_sync_tb(req: SyncTbRequest) -> dict:
     return {
         "tb": tb_source,
         "module": view.name,
+        "tb_top": cfg.tb_top,
+        "changed": True,
+        "mode": "generated",
         "ports": _view_to_dict(view)["ports"],
-        "note": "Generates a template smoke TB — replaces TB tab content. Use your own TB via the TB tab instead.",
+        "message": f"Generated template TB with $dumpvars(0, {cfg.tb_top})",
     }
 
 
 @app.post("/api/tb/add-waves")
 def api_tb_add_waves(req: SyncTbRequest) -> dict:
-    """Append $dumpfile/$dumpvars to user TB if missing (does not replace stimulus)."""
-    tb = req.source or ""
-    info = ingest.analyze_tb_source(tb)
-    top = info.get("tb_top")
-    if not top:
-        raise HTTPException(status_code=400, detail="No module found in TB source")
-    if info.get("has_dumpfile") and info.get("has_dumpvars"):
-        return {"tb": tb, "tb_top": top, "changed": False, "message": "TB already has wave dumps"}
-    snippet = ingest.wave_dump_snippet(top)
-    # Insert before endmodule if possible
-    idx = tb.lower().rfind("endmodule")
-    if idx >= 0:
-        updated = tb[:idx] + snippet + tb[idx:]
-    else:
-        updated = tb + snippet
-    return {
-        "tb": updated,
-        "tb_top": top,
-        "changed": True,
-        "message": f"Added VCD dump for module {top}",
-    }
+    """Legacy alias — prefer POST /api/sync-tb with tb_source set."""
+    req2 = SyncTbRequest(source="", tb_source=req.source)
+    return api_sync_tb(req2)
 
 
 @app.post("/api/ai/generate")

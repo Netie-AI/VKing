@@ -1,0 +1,12 @@
+{
+  "run_id": "run-0017",
+  "timestamp": "2026-07-08T15:10:00+08:00",
+  "target": "fix Sync TB Not Found — unified /api/sync-tb",
+  "plan_section": "section 9 (UI)",
+  "interfaces_touched": ["/api/sync-tb (tb_source optional, single endpoint)"],
+  "files_changed": ["prototype/vking_proto/app.py", "prototype/templates/index.html"],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": ["Merged add-waves into sync-tb to avoid 404 on stale server routes"],
+  "open_questions_for_claude": []
+}

@@ -753,7 +753,7 @@
           <div class="toolbar glass">
             <select class="sample-select" id="sample-select" title="Pick a sample DUT"></select>
             <button type="button" class="secondary" id="btn-demo" title="Load selected sample">① Load</button>
-            <button type="button" id="btn-sync-tb" title="Empty TB → generate template. Existing TB → add $dumpvars(0, top) only (keeps your stimulus)">② Sync TB</button>
+            <button type="button" id="btn-sync-tb" title="Sync testbench: generates template if TB empty, or adds $dumpvars to your existing TB">② Sync TB</button>
             <button type="button" id="btn-parse">Parse</button>
             <input type="text" id="ai-prompt" placeholder="AI prompt (optional)…" />
             <button type="button" id="btn-ai-tb" title="AI-generate testbench from DUT (replaces TB tab)">AI TB</button>
@@ -761,7 +761,7 @@
             <button type="button" class="primary" id="btn-run" title="Compile + simulate with Icarus">③ Run Sim</button>
             <span class="ai-badge" id="ai-badge">AI: …</span>
           </div>
-          <p class="beginner-strip"><strong>Flow:</strong> ① Load or paste DUT → ② Sync TB (template + <code>$dumpvars(0, top)</code>) → ③ Run Sim → <em>Waves</em> + <em>Schematic</em> auto-open. Your own TB? Paste in TB tab — Sync TB only adds wave dump, won&rsquo;t replace it.</p>
+          <p class="beginner-strip"><strong>Flow:</strong> Paste DUT (design only) in <em>DUT</em> tab · paste testbench in <em>TB</em> tab (or leave TB empty) · click <strong>Sync TB</strong> · <strong>Run Sim</strong>. Sync TB never deletes your stimulus — it only adds <code>$dumpvars(0, top)</code> if missing.</p>
           <p class="status-line" id="left-status"></p>
         </div>
       </section>
@@ -1540,47 +1540,48 @@ endmodule`;
 
     $('btn-demo').addEventListener('click', () => loadSelectedSample());
 
-    $('btn-sync-tb').addEventListener('click', async () => {
-      const source = getEditor('dut').value;
-      if (!source.trim()) {
-        $('left-status').textContent = 'DUT source is empty';
-        return;
-      }
-      const existingTb = getEditor('tb').value.trim();
-      if (!existingTb) {
-        $('left-status').textContent = 'Sync TB — generating template…';
-        const r = await fetch('/api/sync-tb', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source }),
-        });
-        const data = await r.json();
-        if (!r.ok) {
-          $('left-status').textContent = data.detail || 'sync-tb failed';
-          return;
-        }
-        getEditor('tb').value = data.tb || '';
-        if (data.ports) renderPorts(data.ports);
-        setActiveEditor('tb');
-        $('left-status').textContent =
-          'Sync TB — template with $dumpvars(0, tb_top) for ' + (data.module || '');
-        return;
-      }
-      $('left-status').textContent = 'Sync TB — adding wave dump to your testbench…';
-      const r = await fetch('/api/tb/add-waves', {
+    async function apiJson(url, body) {
+      const r = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: existingTb }),
+        body: JSON.stringify(body),
       });
-      const data = await r.json();
+      let data = {};
+      try {
+        data = await r.json();
+      } catch {
+        data = { detail: r.statusText || 'request failed' };
+      }
       if (!r.ok) {
-        $('left-status').textContent = data.detail || 'sync-tb failed';
+        const msg = data.detail || data.message || ('HTTP ' + r.status);
+        if (r.status === 404) {
+          throw new Error('Server route missing — restart: python -m uvicorn vking_proto.app:app --port 9000');
+        }
+        throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
+      return data;
+    }
+
+    $('btn-sync-tb').addEventListener('click', async () => {
+      const dut = getEditor('dut').value;
+      const tb = getEditor('tb').value;
+      if (!dut.trim()) {
+        $('left-status').textContent = 'Paste your design in the DUT tab first';
+        setActiveEditor('dut');
         return;
       }
-      if (data.changed) getEditor('tb').value = data.tb;
-      setActiveEditor('tb');
-      $('left-status').textContent =
-        data.message + ' — your stimulus unchanged. Use $dumpvars(0, ' + (data.tb_top || 'top') + ').';
+      $('left-status').textContent = tb.trim()
+        ? 'Sync TB — checking your testbench + adding wave dump if needed…'
+        : 'Sync TB — generating template testbench…';
+      try {
+        const data = await apiJson('/api/sync-tb', { source: dut, tb_source: tb.trim() || null });
+        if (data.changed !== false) getEditor('tb').value = data.tb || tb;
+        if (data.ports) renderPorts(data.ports);
+        setActiveEditor('tb');
+        $('left-status').textContent = data.message || 'Sync TB done';
+      } catch (e) {
+        $('left-status').textContent = 'Sync TB failed: ' + e.message;
+      }
     });
 
     $('btn-parse').addEventListener('click', async () => {
@@ -1626,13 +1627,12 @@ endmodule`;
       }
       let tb = data.verilog || '';
       if (tb && !/\$dumpfile/.test(tb)) {
-        const wr = await fetch('/api/tb/add-waves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: tb }),
-        });
-        const wdata = await wr.json();
-        if (wr.ok && wdata.changed) tb = wdata.tb;
+        try {
+          const wdata = await apiJson('/api/sync-tb', { source: dut, tb_source: tb });
+          if (wdata.changed !== false) tb = wdata.tb || tb;
+        } catch {
+          /* keep AI TB as-is */
+        }
       }
       getEditor('tb').value = tb;
       setActiveEditor('tb');
