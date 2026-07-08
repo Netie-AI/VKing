@@ -5,7 +5,7 @@ Subcommands:
   push-run    Create/push branch named after latest handoff run_id
   merge-run   Merge approved run branch into main (requires -review.json verdict pass)
 
-Remote: https://github.com/jian-hong/Vking.git
+Remote: https://github.com/Netie-AI/VKing.git
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HANDOFFS_DIR = ROOT / "docs" / "handoffs"
-REMOTE = "https://github.com/jian-hong/Vking.git"
+REMOTE = "https://github.com/Netie-AI/VKing.git"
 MAIN_BRANCH = "main"
 
 
@@ -111,6 +111,33 @@ def push_run() -> None:
     print(f"pushed {branch} -> origin ({REMOTE})")
 
 
+def _branch_exists(branch: str) -> bool:
+    local = _run_out(["git", "branch", "--list", branch])
+    if local:
+        return True
+    remote = _run_out(["git", "branch", "-r", "--list", f"origin/{branch}"])
+    return bool(remote)
+
+
+def _checkout_main() -> None:
+    if _run(["git", "checkout", MAIN_BRANCH], check=False).returncode == 0:
+        return
+    remote_main = _run(["git", "ls-remote", "--heads", "origin", MAIN_BRANCH], check=False)
+    if remote_main.returncode == 0 and (remote_main.stdout or "").strip():
+        _run(["git", "fetch", "origin", MAIN_BRANCH])
+        _run(["git", "checkout", "-b", MAIN_BRANCH, f"origin/{MAIN_BRANCH}"])
+        return
+    print(f"note: {MAIN_BRANCH} does not exist yet — will be created on first merge")
+
+
+def _promote_branch_to_main(branch: str) -> None:
+    """First merge: push run branch directly to main (no orphan checkout)."""
+    _run(["git", "push", "origin", f"{branch}:refs/heads/{MAIN_BRANCH}"])
+    _run(["git", "fetch", "origin", MAIN_BRANCH])
+    _run(["git", "checkout", "-b", MAIN_BRANCH, f"origin/{MAIN_BRANCH}"])
+    print(f"promoted {branch} -> origin/{MAIN_BRANCH}")
+
+
 def merge_run(run_id: str | None = None) -> None:
     _ensure_git_repo()
     _ensure_remote()
@@ -130,9 +157,25 @@ def merge_run(run_id: str | None = None) -> None:
         sys.exit(1)
 
     branch = run_id
+    if not _branch_exists(branch):
+        print(
+            f"note: no git branch '{branch}' — review recorded (verdict: pass), "
+            f"nothing to merge (work may live on a later run branch)"
+        )
+        return
+
     _run(["git", "fetch", "origin"])
-    _run(["git", "checkout", MAIN_BRANCH])
-    _run(["git", "pull", "origin", MAIN_BRANCH])
+    on_main = _run(["git", "ls-remote", "--heads", "origin", MAIN_BRANCH], check=False)
+    main_exists = on_main.returncode == 0 and (on_main.stdout or "").strip()
+
+    if not main_exists:
+        _promote_branch_to_main(branch)
+        return
+
+    _checkout_main()
+    pull = _run(["git", "pull", "origin", MAIN_BRANCH], check=False)
+    if pull.returncode != 0:
+        print(f"warning: could not pull {MAIN_BRANCH}", file=sys.stderr)
     _run(["git", "merge", branch, "--no-ff", "-m", f"Merge {branch} (Claude review: pass)"])
     _run(["git", "push", "origin", MAIN_BRANCH])
     print(f"merged {branch} -> {MAIN_BRANCH} and pushed")

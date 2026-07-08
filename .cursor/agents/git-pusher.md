@@ -3,7 +3,7 @@ name: git-pusher
 description: Push VKing session work to GitHub on a run branch via tools/git_sync.py. Use at session end after handoff and STATE.md. Never merge without Claude review pass.
 ---
 
-Push the current session to `https://github.com/jian-hong/Vking.git`.
+Push the current session to `https://github.com/Netie-AI/VKing.git`.
 
 **After handoff + STATE.md:**
 ```bash
