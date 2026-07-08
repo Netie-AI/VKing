@@ -1,0 +1,29 @@
+{
+  "run_id": "run-0009",
+  "timestamp": "2026-07-08T13:35:00+08:00",
+  "target": "v0.1 prototype — AI generate, sync-tb, wave canvas APIs",
+  "plan_section": "section 9 (UI v0.1) + section 3 UC6 prototype",
+  "interfaces_touched": [
+    "IUIRenderer (wave canvas traces)",
+    "ITBGenerator (sync-tb endpoint)",
+    "ISimBackend (optional tb_source on run)"
+  ],
+  "files_changed": [
+    "prototype/vking_proto/config.py",
+    "prototype/vking_proto/ai_generate.py",
+    "prototype/vking_proto/waves.py",
+    "prototype/vking_proto/doctor.py",
+    "prototype/vking_proto/app.py",
+    "prototype/requirements.txt"
+  ],
+  "gate_results": {},
+  "self_provenance": "L1_compiled",
+  "deviations_from_plan": [
+    "AI generation uses OpenRouter/Groq HTTP APIs (prototype-only); not in frozen §4.4 interfaces yet",
+    "Wave canvas uses VCD step traces from delta.parse_vcd; FST runs return 400 on /api/waves"
+  ],
+  "open_questions_for_claude": [
+    "Review AI provider env priority (OPENROUTER before GROQ) and default free-tier models",
+    "Confirm wave canvas signal heuristics (clk/rst/count/out) match UI expectations"
+  ]
+}

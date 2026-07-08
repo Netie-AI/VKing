@@ -1,0 +1,51 @@
+{
+  "run_id": "89fd15bab767",
+  "timestamp": "2026-07-08T05:12:28Z",
+  "module": "counter",
+  "param_set": {},
+  "dialect_profile": "V2005-safe",
+  "backend": "iverilog",
+  "backend_version": null,
+  "flags": [],
+  "seed": null,
+  "timescale": "1ns/1ps",
+  "gate_results": {
+    "G0": {
+      "gate": "G0",
+      "status": "SKIP",
+      "message": "verilator not on PATH",
+      "backend": "verilator"
+    },
+    "G1": {
+      "gate": "G1",
+      "status": "SKIP",
+      "message": "iverilog/vvp not on PATH",
+      "backend": "iverilog"
+    },
+    "G1.5": {
+      "gate": "G1.5",
+      "status": "SKIP",
+      "message": "compile skipped",
+      "backend": "iverilog"
+    },
+    "G2": {
+      "gate": "G2",
+      "status": "SKIP",
+      "message": "sim skipped",
+      "backend": "iverilog"
+    }
+  },
+  "vacuity_report": [],
+  "waivers_applied": [],
+  "artifact_paths": {
+    "tb": "C:\\Users\\OoiJianHong\\VKing\\prototype\\runs\\89fd15bab767\\tb.v",
+    "dut": "C:\\Users\\OoiJianHong\\VKing\\prototype\\runs\\89fd15bab767\\dut.v",
+    "filelist": null,
+    "waves": "C:\\Users\\OoiJianHong\\VKing\\prototype\\runs\\89fd15bab767\\waves.fst",
+    "log": null,
+    "vvp": null,
+    "compile_log": null,
+    "manifest": null,
+    "sim_log": "C:\\Users\\OoiJianHong\\VKing\\prototype\\runs\\89fd15bab767\\run.log"
+  }
+}
