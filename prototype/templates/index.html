@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vking Prototype</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --pass: #3fb950;
+      --fail: #f85149;
+      --warn: #d29922;
+      --na: #6e7681;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .banner {
+      background: #1c2128;
+      border: 1px solid var(--warn);
+      color: var(--muted);
+      padding: 0.6rem 0.75rem;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      line-height: 1.4;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .chip {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #21262d;
+    }
+    .chip.ok { border-color: var(--pass); color: var(--pass); }
+    .chip.bad { border-color: var(--fail); color: var(--fail); }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      min-height: calc(100vh - 140px);
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .pane {
+      padding: 1rem;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .pane:last-child { border-right: none; }
+    .pane h2 {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    textarea, input, select, button {
+      font: inherit;
+    }
+    textarea {
+      flex: 1;
+      min-height: 280px;
+      background: #0d1117;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem;
+      resize: vertical;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    button {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.35rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; }
+    .gate-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .gate {
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+      min-width: 5rem;
+    }
+    .gate.pass { border-color: var(--pass); }
+    .gate.fail { border-color: var(--fail); }
+    .gate.na, .gate.skip { border-color: var(--na); color: var(--muted); }
+    .gate small { display: block; color: var(--muted); margin-top: 0.15rem; }
+    pre.log {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem;
+      font-size: 0.72rem;
+      max-height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+      margin: 0;
+    }
+    .links a {
+      color: var(--accent);
+      font-size: 0.8rem;
+      margin-right: 0.75rem;
+    }
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem;
+      background: var(--panel);
+    }
+    .note {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .status-msg { font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Vking Prototype — local Verilog workbench</h1>
+    <div class="banner">
+      G0–G3 verify the testbench and DUT are alive and self-consistent.
+      Functional correctness requires G4 or your own review.
+      Green chips are not &ldquo;verified correct.&rdquo;
+    </div>
+    <div class="chips" id="doctor-chips">
+      <span class="chip">Checking toolchain…</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="pane">
+      <h2>Verilog source</h2>
+      <textarea id="source" spellcheck="false" placeholder="Paste module Verilog here…"></textarea>
+      <div class="toolbar">
+        <button type="button" class="secondary" id="btn-demo">Load Demo</button>
+        <button type="button" id="btn-parse">Parse ports</button>
+        <button type="button" id="btn-run">Run simulation</button>
+      </div>
+      <p class="status-msg" id="left-status"></p>
+    </section>
+
+    <section class="pane">
+      <h2>Results</h2>
+
+      <div class="section">
+        <h2 style="margin-bottom:0.5rem">Port table</h2>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Dir</th><th>Width</th></tr>
+          </thead>
+          <tbody id="ports-body">
+            <tr><td colspan="3" class="note">Parse or run to populate</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2 style="margin-bottom:0.5rem">Gates (backend-labeled)</h2>
+        <div class="gate-row" id="gate-row">
+          <div class="gate na">G0 <small>verilator</small><br>N/A</div>
+          <div class="gate na">G1 <small>iverilog</small><br>—</div>
+          <div class="gate na">G1.5 <small>iverilog</small><br>—</div>
+          <div class="gate na">G2 <small>iverilog</small><br>—</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 style="margin-bottom:0.5rem">Simulation log</h2>
+        <pre class="log" id="sim-log">(no run yet)</pre>
+      </div>
+
+      <div class="section links">
+        <h2 style="margin-bottom:0.5rem">Artifacts</h2>
+        <span id="artifact-links" class="note">Run simulation to generate TB, Makefile, waves</span>
+        <div style="margin-top:0.5rem">
+          <button type="button" class="secondary" id="btn-gtkwave" disabled>Open waves in GTKWave</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 style="margin-bottom:0.5rem">Reconstructed delta (prototype — from VCD, not VPI scheduler)</h2>
+        <p class="note">Pick a simulation time (ns). Requires VCD; FST-only runs show a disabled note.</p>
+        <div class="toolbar">
+          <label>Time (ns): <input type="number" id="delta-time" value="100" min="0" step="1" style="width:5rem;background:#0d1117;border:1px solid var(--border);color:var(--text);padding:0.25rem" /></label>
+          <button type="button" class="secondary" id="btn-delta" disabled>Show delta</button>
+        </div>
+        <p class="note" id="delta-note">No run yet</p>
+        <table>
+          <thead>
+            <tr><th>Signal</th><th>Prev</th><th>Value</th><th>Δ idx</th></tr>
+          </thead>
+          <tbody id="delta-body">
+            <tr><td colspan="4" class="note">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const DEMO_COUNTER = `module counter #(
+  parameter WIDTH = 8
+) (
+  input  wire             clk,
+  input  wire             rst_n,
+  input  wire             en,
+  output reg  [WIDTH-1:0] count
+);
+
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+      count <= {WIDTH{1'b0}};
+    else if (en)
+      count <= count + 1'b1;
+  end
+
+endmodule`;
+
+    let state = {
+      simReady: false,
+      wavesReady: false,
+      runId: null,
+      artifactUrls: {},
+    };
+
+    function gateClass(status) {
+      const s = (status || '').toUpperCase();
+      if (s === 'PASS') return 'pass';
+      if (s === 'FAIL' || s === 'VACUOUS') return 'fail';
+      return 'na';
+    }
+
+    function renderDoctor(data) {
+      const el = document.getElementById('doctor-chips');
+      const tools = data.tools || {};
+      el.innerHTML = '';
+      for (const name of ['iverilog', 'vvp', 'gtkwave']) {
+        const t = tools[name] || {};
+        const chip = document.createElement('span');
+        chip.className = 'chip ' + (t.available ? 'ok' : 'bad');
+        chip.textContent = name + ': ' + (t.available ? (t.version || 'ok') : 'missing');
+        chip.title = t.message || '';
+        el.appendChild(chip);
+      }
+      state.simReady = !!data.sim_ready;
+      state.wavesReady = !!data.waves_ready;
+      document.getElementById('btn-run').disabled = !state.simReady;
+      if (!state.simReady) {
+        document.getElementById('left-status').textContent =
+          'iverilog/vvp not found — install oss-cad-suite; parse still works.';
+      }
+    }
+
+    function renderPorts(ports) {
+      const body = document.getElementById('ports-body');
+      if (!ports || !ports.length) {
+        body.innerHTML = '<tr><td colspan="3" class="note">No ports detected</td></tr>';
+        return;
+      }
+      body.innerHTML = ports.map(p =>
+        `<tr><td>${p.name}</td><td>${p.direction}</td><td>${p.width}</td></tr>`
+      ).join('');
+    }
+
+    function renderGates(gateResults) {
+      const row = document.getElementById('gate-row');
+      const order = [
+        ['G0', 'verilator'],
+        ['G1', 'iverilog'],
+        ['G1.5', 'iverilog'],
+        ['G2', 'iverilog'],
+      ];
+      row.innerHTML = order.map(([g, backend]) => {
+        const r = (gateResults && gateResults[g]) || { status: '—', message: '' };
+        return `<div class="gate ${gateClass(r.status)}">${g} <small>${backend}</small><br>${r.status}<small>${r.message || ''}</small></div>`;
+      }).join('');
+    }
+
+    function renderArtifacts(urls) {
+      const el = document.getElementById('artifact-links');
+      const keys = ['tb', 'makefile', 'waves', 'log', 'dut'];
+      const links = keys.filter(k => urls[k]).map(k =>
+        `<a href="${urls[k]}" download>${k}</a>`
+      );
+      el.innerHTML = links.length ? links.join('') : '<span class="note">No artifacts</span>';
+      document.getElementById('btn-gtkwave').disabled = !(state.wavesReady && urls.waves);
+      document.getElementById('btn-delta').disabled = !state.runId;
+    }
+
+    async function fetchDoctor() {
+      try {
+        const r = await fetch('/api/doctor');
+        renderDoctor(await r.json());
+      } catch (e) {
+        document.getElementById('doctor-chips').innerHTML =
+          '<span class="chip bad">doctor failed</span>';
+      }
+    }
+
+    document.getElementById('btn-demo').addEventListener('click', async () => {
+      try {
+        const r = await fetch('/api/demo/counter');
+        const data = await r.json();
+        document.getElementById('source').value = data.source || DEMO_COUNTER;
+      } catch {
+        document.getElementById('source').value = DEMO_COUNTER;
+      }
+      document.getElementById('left-status').textContent = 'Loaded counter demo';
+    });
+
+    document.getElementById('btn-parse').addEventListener('click', async () => {
+      const source = document.getElementById('source').value;
+      document.getElementById('left-status').textContent = 'Parsing…';
+      const r = await fetch('/api/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        document.getElementById('left-status').textContent = (data.detail || 'parse failed');
+        return;
+      }
+      renderPorts(data.ports);
+      document.getElementById('left-status').textContent =
+        'Module: ' + data.module + (data.errors?.length ? ' — ' + data.errors.join('; ') : '');
+    });
+
+    document.getElementById('btn-run').addEventListener('click', async () => {
+      const source = document.getElementById('source').value;
+      document.getElementById('left-status').textContent = 'Running…';
+      document.getElementById('sim-log').textContent = '(running)';
+      const r = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        document.getElementById('left-status').textContent = data.detail || 'run failed';
+        document.getElementById('sim-log').textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+      state.runId = data.manifest.run_id;
+      state.artifactUrls = data.artifact_urls || {};
+      renderPorts(data.ports);
+      renderGates(data.manifest.gate_results);
+      document.getElementById('sim-log').textContent = data.log || '(empty log)';
+      renderArtifacts(state.artifactUrls);
+      document.getElementById('left-status').textContent =
+        'Run ' + state.runId + ' — backend ' + data.manifest.backend +
+        (data.manifest.backend_version ? ' (' + data.manifest.backend_version + ')' : '');
+      document.getElementById('delta-note').textContent =
+        'Run complete — delta uses VCD if present; FST-only shows limited data.';
+    });
+
+    document.getElementById('btn-gtkwave').addEventListener('click', async () => {
+      if (!state.runId) return;
+      const r = await fetch('/api/gtkwave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: state.runId }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        alert(data.detail || 'GTKWave launch failed');
+        return;
+      }
+      document.getElementById('left-status').textContent = 'Launched GTKWave: ' + data.wave_path;
+    });
+
+    document.getElementById('btn-delta').addEventListener('click', async () => {
+      if (!state.runId) return;
+      const time_ns = parseFloat(document.getElementById('delta-time').value) || 0;
+      const r = await fetch('/api/delta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: state.runId, time_ns }),
+      });
+      const data = await r.json();
+      const note = document.getElementById('delta-note');
+      note.textContent = data.message || (data.available ? 'ok' : 'unavailable');
+      const body = document.getElementById('delta-body');
+      if (!data.rows || !data.rows.length) {
+        body.innerHTML = '<tr><td colspan="4" class="note">No delta rows at this time</td></tr>';
+        return;
+      }
+      body.innerHTML = data.rows.map(row =>
+        `<tr><td>${row.signal}</td><td>${row.prev}</td><td>${row.value}</td><td>${row.delta_idx}</td></tr>`
+      ).join('');
+    });
+
+    fetchDoctor();
+  </script>
+</body>
+</html>

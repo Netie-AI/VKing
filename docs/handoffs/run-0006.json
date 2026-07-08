@@ -1,0 +1,35 @@
+{
+  "run_id": "run-0006",
+  "timestamp": "2026-07-08T13:30:00+08:00",
+  "target": "v0.1 vertical slice — one-page web UI (master plan section 9, day 4)",
+  "plan_section": "section 9 (UI v0.1) + section 7 (gates/manifest honesty banner)",
+  "interfaces_touched": ["IUIRenderer (prototype FastAPI + vanilla JS)"],
+  "files_changed": [
+    "prototype/vking_proto/__init__.py",
+    "prototype/vking_proto/app.py",
+    "prototype/vking_proto/doctor.py",
+    "prototype/vking_proto/ingest.py",
+    "prototype/vking_proto/tbgen.py",
+    "prototype/vking_proto/runner.py",
+    "prototype/vking_proto/manifest.py",
+    "prototype/vking_proto/delta.py",
+    "prototype/vking_proto/demos/counter.v",
+    "prototype/templates/index.html",
+    "prototype/requirements.txt",
+    "prototype/Makefile",
+    "prototype/README.md",
+    "prototype/.gitignore"
+  ],
+  "gate_results": {},
+  "self_provenance": "L2_sim_active",
+  "deviations_from_plan": [
+    "G0 Verilator lint wired in runner but UI labels N/A when verilator missing",
+    "Delta panel uses VCD reconstruction only — FST runs show disabled note per plan",
+    "ingest uses regex generic view, not pyslang (pyslang not in prototype requirements.txt)",
+    "Makefile target written post-run in app.py rather than runner module"
+  ],
+  "open_questions_for_claude": [
+    "Review prototype/vking_proto/app.py integration with runner.run_simulation and doctor.doctor_report",
+    "Confirm honesty banner and backend-labeled gate chips match section 7 split policy wording"
+  ]
+}
